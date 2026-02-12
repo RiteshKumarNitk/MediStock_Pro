@@ -29,7 +29,7 @@ class ExpiryAlert {
 
 final expiryAlertsProvider = FutureProvider<List<ExpiryAlert>>((ref) async {
   final data = await supabase
-      .from('expiry_alerts')
+      .from('medi_expiry_alerts') // Updated to medi_expiry_alerts
       .select()
       .order('days_remaining', ascending: true);
   

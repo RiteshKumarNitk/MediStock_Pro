@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:medistock_pro/core/supabase_client.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -92,6 +93,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: _isLoading
                     ? const CircularProgressIndicator()
                     : const Text('Sign In'),
+              ),
+              const SizedBox(height: 16),
+              TextButton(
+                onPressed: () => context.go('/register'),
+                child: const Text("Don't have an account? Sign Up"),
               ),
             ],
           ),

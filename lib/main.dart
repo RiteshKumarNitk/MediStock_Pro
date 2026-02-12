@@ -6,11 +6,17 @@ import 'package:medistock_pro/core/router.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint('Starting App Initialization...');
 
-  await Supabase.initialize(
-    url: 'https://gileyahzdpoyjgrztxow.supabase.co',
-    anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbGV5YWh6ZHBveWpncnp0eG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NzE2MTQsImV4cCI6MjA3NzI0NzYxNH0.b9RNGS-r4B91y96nxdUjK_jNtaG_5Dm-KwBSKtlPMYs',
-  );
+  try {
+    await Supabase.initialize(
+      url: 'https://gileyahzdpoyjgrztxow.supabase.co',
+      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbGV5YWh6ZHBveWpncnp0eG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NzE2MTQsImV4cCI6MjA3NzI0NzYxNH0.b9RNGS-r4B91y96nxdUjK_jNtaG_5Dm-KwBSKtlPMYs',
+    );
+    debugPrint('Supabase Initialized Successfully');
+  } catch (e) {
+    debugPrint('Supabase Initialization Error: $e');
+  }
 
   runApp(const ProviderScope(child: MyApp()));
 }

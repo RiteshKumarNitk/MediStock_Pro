@@ -1,88 +1,65 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medistock_pro/core/supabase_client.dart';
 
-class Product {
-  final String id;
-  final String name;
-  final String barcode;
+class InventoryProvider extends StateNotifier<bool> {
+  InventoryProvider() : super(false);
 
-  Product({required this.id, required this.name, required this.barcode});
-
-  factory Product.fromJson(Map<String, dynamic> json) {
-    return Product(
-      id: json['id'],
-      name: json['name'],
-      barcode: json['barcode'],
-    );
-  }
-}
-
-class InventoryRepository {
-  Future<String> _getTenantId() async {
-     final user = supabase.auth.currentUser;
-     if (user == null) throw Exception('Not logged in');
-     
-     final data = await supabase
-        .from('profiles')
-        .select('tenant_id')
-        .eq('id', user.id)
-        .single();
-     return data['tenant_id'];
-  }
-
-  Future<Product?> getProductByBarcode(String barcode) async {
-    final response = await supabase
-        .from('products')
+  Future<Map<String, dynamic>?> getProductByBarcode(String barcode) async {
+    final data = await supabase
+        .from('medi_products')
         .select()
         .eq('barcode', barcode)
         .maybeSingle();
-    
-    if (response == null) return null;
-    return Product.fromJson(response);
+    return data;
   }
 
-  Future<void> addProductAndBatch({
+  Future<void> addStock({
     required String barcode,
     required String name,
     required String batchNo,
     required DateTime expiryDate,
     required int quantity,
+    required double? purchasePrice,
+    required double? sellingPrice,
   }) async {
-    final tenantId = await _getTenantId();
-
-    // Check if product exists for this tenant (RLS handles visibility, but we check specific barcode)
-    final productRes = await supabase
-        .from('products')
-        .select()
-        .eq('barcode', barcode)
-        .maybeSingle();
-
-    String productId;
-    if (productRes == null) {
-      // Create new product
-      final newProduct = await supabase
-          .from('products')
-          .insert({
-            'tenant_id': tenantId,
-            'name': name,
-            'barcode': barcode,
-          })
-          .select()
+    state = true;
+    try {
+      // 1. Get current user profile to get tenant_id
+      final profile = await supabase
+          .from('medi_profiles')
+          .select('tenant_id')
+          .eq('id', supabase.auth.currentUser!.id)
           .single();
-      productId = newProduct['id'];
-    } else {
-      productId = productRes['id'];
-    }
+      
+      final String tenantId = profile['tenant_id'];
 
-    // Create batch
-    await supabase.from('batches').insert({
-      'tenant_id': tenantId,
-      'product_id': productId,
-      'batch_no': batchNo,
-      'expiry_date': expiryDate.toIso8601String(),
-      'quantity': quantity,
-    });
+      // 2. Upsert Product
+      final product = await supabase.from('medi_products').upsert({
+        'tenant_id': tenantId,
+        'barcode': barcode,
+        'name': name,
+      }).select().single();
+
+      // 3. Add Batch
+      await supabase.from('medi_batches').insert({
+        'tenant_id': tenantId,
+        'product_id': product['id'],
+        'batch_no': batchNo,
+        'expiry_date': expiryDate.toIso8601String(),
+        'quantity': quantity,
+        'purchase_price': purchasePrice,
+        'selling_price': sellingPrice,
+      });
+    } catch (e) {
+      debugPrint('Error adding stock: $e');
+      rethrow;
+    } finally {
+      state = false;
+    }
   }
 }
 
-final inventoryRepositoryProvider = Provider((ref) => InventoryRepository());
+final inventoryProvider = StateNotifierProvider<InventoryProvider, bool>((ref) {
+  return InventoryProvider();
+});

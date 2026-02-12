@@ -35,13 +35,13 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   }
 
   Future<void> _checkBarcode(String barcode) async {
-    final repository = ref.read(inventoryRepositoryProvider);
+    final notifier = ref.read(inventoryProvider.notifier);
     try {
-      final product = await repository.getProductByBarcode(barcode);
+      final product = await notifier.getProductByBarcode(barcode);
       if (product != null) {
         setState(() {
-          _nameController.text = product.name;
-          _isNewProduct = false; // Product exists, just adding batch
+          _nameController.text = product['name'];
+          _isNewProduct = false; // Product exists
         });
       }
     } catch (e) {
@@ -77,13 +77,15 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
     });
 
     try {
-      final repository = ref.read(inventoryRepositoryProvider);
-      await repository.addProductAndBatch(
+      final notifier = ref.read(inventoryProvider.notifier);
+      await notifier.addStock(
         barcode: _barcodeController.text.trim(),
         name: _nameController.text.trim(),
         batchNo: _batchNoController.text.trim(),
         expiryDate: _expiryDate!,
         quantity: int.parse(_quantityController.text.trim()),
+        purchasePrice: null, // Optional for now
+        sellingPrice: null,
       );
       
       if (mounted) {
@@ -124,7 +126,6 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                   suffixIcon: IconButton(
                     icon: const Icon(Icons.qr_code_scanner),
                     onPressed: () async {
-                      // Navigate to scanner and get result
                       final code = await context.push<String>('/inventory/scan');
                       if (code != null) {
                         _barcodeController.text = code;
@@ -143,7 +144,7 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                 controller: _nameController,
                 decoration: const InputDecoration(labelText: 'Product Name'),
                 validator: (v) => v!.isEmpty ? 'Required' : null,
-                readOnly: !_isNewProduct, // Readonly if product exists
+                readOnly: !_isNewProduct, 
                 enabled: _isNewProduct,
               ),
               const SizedBox(height: 16),

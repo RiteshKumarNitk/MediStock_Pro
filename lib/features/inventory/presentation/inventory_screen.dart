@@ -5,8 +5,8 @@ import 'package:medistock_pro/core/supabase_client.dart';
 
 final inventoryListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final data = await supabase
-      .from('products')
-      .select('*, batches(quantity)') // Fetch products and nested batch quantities
+      .from('medi_products')
+      .select('*, medi_batches(quantity)') // Updated to medi_batches
       .order('name');
   return List<Map<String, dynamic>>.from(data);
 });
@@ -36,7 +36,7 @@ class InventoryScreen extends ConsumerWidget {
             ListTile(
               leading: const Icon(Icons.inventory),
               title: const Text('Inventory'),
-              onTap: () => context.pop(), // Already on inventory
+              onTap: () => context.pop(), 
             ),
              const Divider(),
             ListTile(
@@ -48,7 +48,7 @@ class InventoryScreen extends ConsumerWidget {
             ),
           ],
         ),
-      ), // Reusing drawer logic (should be a shared widget ideally)
+      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => context.push('/inventory/add'),
         child: const Icon(Icons.add),
@@ -62,7 +62,7 @@ class InventoryScreen extends ConsumerWidget {
             itemCount: products.length,
             itemBuilder: (context, index) {
               final product = products[index];
-              final batches = product['batches'] as List;
+              final batches = product['medi_batches'] as List; // Updated key
               final totalQuantity = batches.fold<int>(0, (sum, b) => sum + (b['quantity'] as int));
 
               return ListTile(

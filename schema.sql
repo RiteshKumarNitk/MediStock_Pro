@@ -87,3 +87,22 @@ where b.expiry_date <= current_date + interval '30 days';
 
 -- Grant access to the view
 grant select on medi_expiry_alerts to authenticated;
+-- 8. Trigger to create profile on sign up
+-- Pass tenant_id in user_metadata during signUp
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.medi_profiles (id, tenant_id, role)
+  values (
+    new.id, 
+    (new.raw_user_meta_data->>'tenant_id')::uuid, 
+    coalesce(new.raw_user_meta_data->>'role', 'Admin')
+  );
+  return new;
+end;
+$$ language plpgsql security definer;
+
+-- Trigger should be created after the tables exist
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();

@@ -34,21 +34,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
       
       final String tenantId = tenantData['id'];
 
-      // 2. Sign Up User
+      // 2. Sign Up User (Pass tenant_id in metadata for trigger)
       final AuthResponse res = await supabase.auth.signUp(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
+        data: {'tenant_id': tenantId},
       );
 
       final user = res.user;
       if (user == null) throw Exception('Sign up failed');
 
-      // 3. Create User Profile linked to Tenant in medi_profiles
-      await supabase.from('medi_profiles').insert({
-        'id': user.id,
-        'tenant_id': tenantId,
-        'role': 'Admin',
-      });
+      // 3. Profile is now handled automatically by the database trigger!
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

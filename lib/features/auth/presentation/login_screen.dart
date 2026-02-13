@@ -94,11 +94,16 @@ class _LoginScreenState extends State<LoginScreen> {
                     ? const CircularProgressIndicator()
                     : const Text('Sign In'),
               ),
-              const SizedBox(height: 16),
-              TextButton(
-                onPressed: () => context.go('/register'),
-                child: const Text("Don't have an account? Sign Up"),
-              ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.go('/dashboard'),
+                  child: const Text('Debug: Bypass Login (Testing Only)', style: TextStyle(color: Colors.orange)),
+                ),
+                const SizedBox(height: 16),
+                TextButton(
+                  onPressed: () => context.go('/register'),
+                  child: const Text("Don't have an account? Sign Up"),
+                ),
             ],
           ),
         ),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 
 class ScannerScreen extends StatefulWidget {
@@ -9,7 +10,7 @@ class ScannerScreen extends StatefulWidget {
 }
 
 class _ScannerScreenState extends State<ScannerScreen> {
-  bool _isScanned = false;
+  bool _scanned = false;
 
   @override
   Widget build(BuildContext context) {
@@ -17,18 +18,20 @@ class _ScannerScreenState extends State<ScannerScreen> {
       appBar: AppBar(title: const Text('Scan Barcode')),
       body: MobileScanner(
         onDetect: (capture) {
-          if (_isScanned) return;
+          if (_scanned) return;
           final List<Barcode> barcodes = capture.barcodes;
           if (barcodes.isNotEmpty) {
             final String? code = barcodes.first.rawValue;
             if (code != null) {
-              setState(() {
-                _isScanned = true;
-              });
-              Navigator.pop(context, code);
+              _scanned = true;
+              context.pop(code);
             }
           }
         },
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () => context.pop(),
+        child: const Icon(Icons.close),
       ),
     );
   }

@@ -1,8 +1,18 @@
--- Enable UUID extension
 create extension if not exists "pgcrypto";
 
+-- Clean Slate (Optional: Uncomment if you want to wipe everything)
+-- drop table if exists medi_stock_movements;
+-- drop table if exists medi_sales_items;
+-- drop table if exists medi_sales_invoices;
+-- drop table if exists medi_purchase_items;
+-- drop table if exists medi_purchase_invoices;
+-- drop table if exists medi_batches;
+-- drop table if exists medi_products;
+-- drop table if exists medi_profiles;
+-- drop table if exists medi_tenants;
+
 -- ==========================================
--- 1. CORE MULTI-TENANCY
+-- 2. CORE MULTI-TENANCY
 -- ==========================================
 
 create table medi_tenants (
@@ -11,7 +21,7 @@ create table medi_tenants (
   address text,
   phone text,
   gstin text, -- Tenant's own GSTIN
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 create table medi_profiles (
@@ -19,11 +29,11 @@ create table medi_profiles (
   tenant_id uuid references medi_tenants(id) on delete cascade,
   role text not null check (role in ('super_admin', 'admin', 'staff')) default 'staff',
   name text,
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 -- ==========================================
--- 2. INVENTORY MASTER
+-- 3. INVENTORY MASTER
 -- ==========================================
 
 create table medi_products (
@@ -34,7 +44,7 @@ create table medi_products (
   hsn_code text,
   category text,
   gst_percent numeric default 12,
-  created_at timestamp default now(),
+  created_at timestamp with time zone default now(),
   unique (tenant_id, name), -- Name must be unique within a tenant
   unique (tenant_id, barcode)
 );
@@ -49,11 +59,11 @@ create table medi_batches (
   purchase_price numeric,
   mrp numeric,
   selling_price numeric,
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 -- ==========================================
--- 3. STOCK MOVEMENTS (The Ledger)
+-- 4. STOCK MOVEMENTS (The Ledger)
 -- ==========================================
 
 create table medi_stock_movements (
@@ -64,11 +74,11 @@ create table medi_stock_movements (
   quantity integer not null, -- Positive for in, negative for out
   reference_id uuid, -- link to invoice_id or sale_id
   reason text,
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 -- ==========================================
--- 4. PURCHASE FLOW
+-- 5. PURCHASE FLOW
 -- ==========================================
 
 create table medi_purchase_invoices (
@@ -80,7 +90,7 @@ create table medi_purchase_invoices (
   total_amount numeric not null default 0,
   tax_amount numeric not null default 0,
   image_url text, -- Supabase Storage link
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 create table medi_purchase_items (
@@ -94,24 +104,25 @@ create table medi_purchase_items (
   cgst numeric default 0,
   sgst numeric default 0,
   igst numeric default 0,
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 -- ==========================================
--- 5. SALES FLOW (POS)
+-- 6. SALES FLOW (POS)
 -- ==========================================
 
 create table medi_sales_invoices (
   id uuid primary key default gen_random_uuid(),
   tenant_id uuid references medi_tenants(id) on delete cascade,
-  invoice_number text unique not null,
+  invoice_number text not null, -- Unique per tenant
   customer_name text,
   customer_phone text,
   total_amount numeric not null default 0,
   tax_amount numeric not null default 0,
   discount_amount numeric default 0,
   payment_mode text check (payment_mode in ('cash', 'card', 'upi')),
-  created_at timestamp default now()
+  created_at timestamp with time zone default now(),
+  unique (tenant_id, invoice_number)
 );
 
 create table medi_sales_items (
@@ -124,87 +135,75 @@ create table medi_sales_items (
   cgst numeric default 0,
   sgst numeric default 0,
   igst numeric default 0,
-  created_at timestamp default now()
+  created_at timestamp with time zone default now()
 );
 
 -- ==========================================
--- 6. SECURITY & RLS
+-- 7. SECURITY (RLS) & RBAC
 -- ==========================================
 
--- RBAC Helpers
+-- Helper: Get Tenant ID
 create or replace function public.get_tenant_id() returns uuid as $$
   select tenant_id from public.medi_profiles where id = auth.uid();
 $$ language sql stable security definer;
 
+-- Helper: Get Role
 create or replace function public.get_role() returns text as $$
   select role from public.medi_profiles where id = auth.uid();
 $$ language sql stable security definer;
 
--- Enable RLS
+-- Enable Row Level Security
+alter table medi_tenants enable row level security;
+alter table medi_profiles enable row level security;
 alter table medi_products enable row level security;
 alter table medi_batches enable row level security;
 alter table medi_stock_movements enable row level security;
 alter table medi_purchase_invoices enable row level security;
 alter table medi_sales_invoices enable row level security;
+alter table medi_purchase_items enable row level security;
+alter table medi_sales_items enable row level security;
 
--- Policies: Tenant Isolation & RBAC Enforcement
+-- Policies: Tenants & Profiles
+drop policy if exists "Tenants: Read access" on medi_tenants;
+create policy "Tenants: Read access" on medi_tenants for select using (true);
 
--- 1. Products: Staff can only read. Admins can manage.
-drop policy if exists "Tenant isolation: Products" on medi_products;
+drop policy if exists "Tenants: Allow signup" on medi_tenants;
+create policy "Tenants: Allow signup" on medi_tenants for insert with check (true);
+
+drop policy if exists "Profiles: Read own profile" on medi_profiles;
+create policy "Profiles: Read own profile" on medi_profiles for select using (id = auth.uid());
+
+-- Policies: Products
 create policy "Products: Tenant Read" on medi_products for select using (tenant_id = public.get_tenant_id());
-create policy "Products: Admin Manage" on medi_products for all using (
-  tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin')
-);
+create policy "Products: Admin Manage" on medi_products for all using (tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin'));
 
--- 2. Batches: Staff can read and insert (purchases), but not update/delete.
-drop policy if exists "Tenant isolation: Batches" on medi_batches;
+-- Policies: Batches
 create policy "Batches: Tenant Read" on medi_batches for select using (tenant_id = public.get_tenant_id());
-create policy "Batches: Staff/Admin Insert" on medi_batches for insert with check (tenant_id = public.get_tenant_id());
-create policy "Batches: Admin Update/Delete" on medi_batches for update using (
-  tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin')
-);
+create policy "Batches: Standard Insert" on medi_batches for insert with check (tenant_id = public.get_tenant_id());
+create policy "Batches: Admin Update/Delete" on medi_batches for update using (tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin'));
 
--- 3. Stock Movements: Immutable ledger. Anyone can read/insert for their tenant.
-drop policy if exists "Tenant isolation: Movements" on medi_stock_movements;
-create policy "Movements: Tenant Multi-Role" on medi_stock_movements for all using (tenant_id = public.get_tenant_id());
+-- Policies: Stock Movements
+create policy "Movements: Tenant Access" on medi_stock_movements for all using (tenant_id = public.get_tenant_id());
 
--- 4. Purchases: Both can read/insert. Only admin can delete.
-drop policy if exists "Tenant isolation: Purchases" on medi_purchase_invoices;
-create policy "Purchases: Tenant Read/Insert" on medi_purchase_invoices for select, insert with check (tenant_id = public.get_tenant_id());
-create policy "Purchases: Admin Delete" on medi_purchase_invoices for delete using (
-  tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin')
-);
+-- Policies: Purchases
+create policy "Purchases: Read access" on medi_purchase_invoices for select using (tenant_id = public.get_tenant_id());
+create policy "Purchases: Insert access" on medi_purchase_invoices for insert with check (tenant_id = public.get_tenant_id());
+create policy "Purchases: Admin Delete" on medi_purchase_invoices for delete using (tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin'));
 
--- 5. Sales: Both can read/insert. Only admin can delete.
-drop policy if exists "Tenant isolation: Sales" on medi_sales_invoices;
-create policy "Sales: Tenant Read/Insert" on medi_sales_invoices for select, insert with check (tenant_id = public.get_tenant_id());
-create policy "Sales: Admin Delete" on medi_sales_invoices for delete using (
-  tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin')
-);
+-- Policies: Sales
+create policy "Sales: Read access" on medi_sales_invoices for select using (tenant_id = public.get_tenant_id());
+create policy "Sales: Insert access" on medi_sales_invoices for insert with check (tenant_id = public.get_tenant_id());
+create policy "Sales: Admin Delete" on medi_sales_invoices for delete using (tenant_id = public.get_tenant_id() and public.get_role() in ('admin', 'super_admin'));
+
+-- Policies: Item Details (Security via parent invoice)
+create policy "Purchase Items: Security" on medi_purchase_items for all using (exists (select 1 from medi_purchase_invoices i where i.id = invoice_id and i.tenant_id = public.get_tenant_id()));
+create policy "Sales Items: Security" on medi_sales_items for all using (exists (select 1 from medi_sales_invoices i where i.id = invoice_id and i.tenant_id = public.get_tenant_id()));
 
 -- ==========================================
--- 7. STORAGE POLICIES
+-- 8. AUTOMATION (Triggers)
 -- ==========================================
 
--- Note: Assume bucket 'invoice-images' is created via UI or script
--- Policies for 'invoice-images' bucket
--- Note: 'storage.objects' table is in 'storage' schema
-
-/*
-create policy "Tenants can only access their own folder"
-on storage.objects for all
-using (
-  bucket_id = 'invoice-images' 
-  and (storage.foldername(name))[1] = (select tenant_id::text from medi_profiles where id = auth.uid())
-);
-*/
-
-
--- ==========================================
--- 7. AUTOMATION (Triggers)
--- ==========================================
-
--- Trigger to update Batch Quantity based on Movements
+-- Trigger: Update Batch Quantity
 create or replace function public.update_batch_qty()
 returns trigger as $$
 begin
@@ -219,7 +218,7 @@ create trigger tr_update_batch_qty
 after insert on medi_stock_movements
 for each row execute procedure public.update_batch_qty();
 
--- Trigger to create profile
+-- Trigger: Handle New Auth User
 create or replace function public.handle_new_user()
 returns trigger as $$
 begin

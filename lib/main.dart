@@ -4,14 +4,17 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:medistock_pro/core/router.dart';
 
+const String _supabaseUrl = 'https://qmprhelhuxcbzkkdgprf.supabase.co';
+const String _supabaseAnonKey = 'sb_publishable_6FR-7ZpHLhpVV9eYGEv-zw_SGG_Oz_2';
+
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   debugPrint('Starting App Initialization...');
 
   try {
     await Supabase.initialize(
-      url: 'https://gileyahzdpoyjgrztxow.supabase.co',
-      anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdpbGV5YWh6ZHBveWpncnp0eG93Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjE2NzE2MTQsImV4cCI6MjA3NzI0NzYxNH0.b9RNGS-r4B91y96nxdUjK_jNtaG_5Dm-KwBSKtlPMYs',
+      url: _supabaseUrl,
+      anonKey: _supabaseAnonKey,
     );
     debugPrint('Supabase Initialized Successfully');
   } catch (e) {

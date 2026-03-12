@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
 import 'package:medistock_pro/features/inventory/repositories/inventory_repository.dart';
 
@@ -20,6 +20,7 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
+  final _authService = AuthService();
   String _searchQuery = '';
 
   @override
@@ -80,7 +81,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               leading: const Icon(Icons.logout),
               title: const Text('Sign Out'),
               onTap: () async {
-                 await supabase.auth.signOut();
+                 await _authService.logout();
+                 if (mounted) context.go('/login');
               },
             ),
           ],
@@ -116,8 +118,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             itemCount: filteredProducts.length,
             itemBuilder: (context, index) {
               final product = filteredProducts[index];
-              final batches = product['medi_batches'] as List;
-              final totalQuantity = batches.fold<int>(0, (sum, b) => sum + (b['quantity'] as int));
+              final totalQuantity = product['total_quantity'] ?? 0;
 
               return Card(
                 elevation: 1,
@@ -154,4 +155,3 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     );
   }
 }
-

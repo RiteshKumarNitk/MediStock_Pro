@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 class RegisterScreen extends StatefulWidget {
   const RegisterScreen({super.key});
@@ -15,6 +12,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _storeNameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
 
   Future<void> _signUp() async {
@@ -25,26 +23,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
     });
 
     try {
-      // 1. Create a new Tenant in medi_tenants
-      final tenantData = await supabase
-          .from('medi_tenants')
-          .insert({'name': _storeNameController.text.trim()})
-          .select()
-          .single();
-      
-      final String tenantId = tenantData['id'];
-
-      // 2. Sign Up User (Pass tenant_id in metadata for trigger)
-      final AuthResponse res = await supabase.auth.signUp(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        data: {'tenant_id': tenantId},
+      await _authService.signup(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+        _storeNameController.text.trim(),
+        'admin',
       );
-
-      final user = res.user;
-      if (user == null) throw Exception('Sign up failed');
-
-      // 3. Profile is now handled automatically by the database trigger!
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -52,22 +36,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
         );
         context.go('/login');
       }
-    } on PostgrestException catch (error) {
-       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
-        );
-      }
-    } on AuthException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error.message), backgroundColor: Colors.red),
-        );
-      }
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Unexpected error: $error'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Error: $error'), backgroundColor: Colors.red),
         );
       }
     } finally {

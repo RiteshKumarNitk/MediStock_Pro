@@ -1,25 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
-
 import 'package:medistock_pro/core/router.dart';
-
-const String _supabaseUrl = 'https://qmprhelhuxcbzkkdgprf.supabase.co';
-const String _supabaseAnonKey = 'sb_publishable_6FR-7ZpHLhpVV9eYGEv-zw_SGG_Oz_2';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  debugPrint('Starting App Initialization...');
-
-  try {
-    await Supabase.initialize(
-      url: _supabaseUrl,
-      anonKey: _supabaseAnonKey,
-    );
-    debugPrint('Supabase Initialized Successfully');
-  } catch (e) {
-    debugPrint('Supabase Initialization Error: $e');
-  }
+  debugPrint('Starting App Initialization (Neon DB)...');
 
   runApp(const ProviderScope(child: MyApp()));
 }

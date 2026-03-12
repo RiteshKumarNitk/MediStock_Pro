@@ -1,37 +1,18 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
+import 'package:medistock_pro/core/neon_client.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
-class ExpiryAlert {
-  final String productName;
-  final String batchNo;
-  final DateTime expiryDate;
-  final int quantity;
-  final int daysRemaining;
-
-  ExpiryAlert({
-    required this.productName,
-    required this.batchNo,
-    required this.expiryDate,
-    required this.quantity,
-    required this.daysRemaining,
-  });
-
-  factory ExpiryAlert.fromJson(Map<String, dynamic> json) {
-    return ExpiryAlert(
-      productName: json['product_name'] ?? 'Unknown',
-      batchNo: json['batch_no'] ?? 'Unknown',
-      expiryDate: DateTime.parse(json['expiry_date']),
-      quantity: json['quantity'] ?? 0,
-      daysRemaining: json['days_remaining'] ?? 0,
-    );
-  }
-}
+// ... (ExpiryAlert class remains same)
 
 final expiryAlertsProvider = FutureProvider<List<ExpiryAlert>>((ref) async {
-  final data = await supabase
-      .from('medi_expiry_alerts') // Updated to medi_expiry_alerts
-      .select()
-      .order('days_remaining', ascending: true);
+  final tenantId = await AuthService().getTenantId();
+  if (tenantId == null) return [];
+
+  // Assuming medi_expiry_alerts is a view in Neon DB
+  final result = await neonClient.query(
+    'SELECT * FROM medi_expiry_alerts WHERE tenant_id = @tenantId ORDER BY days_remaining ASC',
+    substitutionValues: {'tenantId': tenantId},
+  );
   
-  return (data as List).map((e) => ExpiryAlert.fromJson(e)).toList();
+  return result.map((row) => ExpiryAlert.fromJson(row.toColumnMap())).toList();
 });

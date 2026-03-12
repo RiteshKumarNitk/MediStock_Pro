@@ -1,17 +1,38 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:intl/intl.dart';
+import 'package:medistock_pro/core/neon_client.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 class ReturnsManagementScreen extends ConsumerWidget {
   const ReturnsManagementScreen({super.key});
+
+  Future<List<Map<String, dynamic>>> _fetchReturns() async {
+    final tenantId = await AuthService().getTenantId();
+    if (tenantId == null) return [];
+
+    final results = await neonClient.query(
+      '''
+      SELECT r.*, b.batch_no 
+      FROM medi_returns r
+      JOIN medi_batches b ON r.batch_id = b.id
+      WHERE r.tenant_id = @tenantId
+      ''',
+      substitutionValues: {'tenantId': tenantId},
+    );
+
+    return results.map((row) {
+      final data = row.toColumnMap();
+      return {
+        ...data,
+        'medi_batches': {'batch_no': data['batch_no']}
+      };
+    }).toList();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
       appBar: AppBar(title: const Text('Returns Management')),
-      body: FutureBuilder(
-        future: supabase.from('medi_returns').select('*, medi_batches(*)'),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: _fetchReturns(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
@@ -20,7 +41,7 @@ class ReturnsManagementScreen extends ConsumerWidget {
             return Center(child: Text('Error: ${snapshot.error}'));
           }
 
-          final returns = snapshot.data as List;
+          final returns = snapshot.data ?? [];
 
           if (returns.isEmpty) {
             return const Center(child: Text('No return records found.'));
@@ -31,7 +52,7 @@ class ReturnsManagementScreen extends ConsumerWidget {
             itemCount: returns.length,
             itemBuilder: (context, index) {
               final ret = returns[index];
-              final batch = ret['medi_batches'];
+              final batchNo = ret['medi_batches']['batch_no'];
               final status = ret['status'] as String;
 
               return Card(
@@ -40,9 +61,9 @@ class ReturnsManagementScreen extends ConsumerWidget {
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Batch: ${batch['batch_no']}'),
+                      Text('Batch: $batchNo'),
                       if (ret['reason'] != null) Text('Reason: ${ret['reason']}'),
-                      Text('Date: ${DateFormat('dd MMM yyyy').format(DateTime.parse(ret['created_at']))}'),
+                      Text('Date: ${DateFormat('dd MMM yyyy').format(DateTime.parse(ret['created_at'].toString()))}'),
                     ],
                   ),
                   trailing: Container(

@@ -1,23 +1,19 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
-import 'package:medistock_pro/features/inventory/presentation/expiry_alerts_screen.dart';
-
-import 'package:medistock_pro/core/notification_service.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
+import 'package:medistock_pro/features/auth/providers/profile_provider.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   Future<void> _signOut(BuildContext context) async {
-    await supabase.auth.signOut();
+    await AuthService().logout();
+    if (context.mounted) context.go('/login');
   }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final alertsAsync = ref.watch(expiryAlertsProvider);
     final productsAsync = ref.watch(productsProvider);
+    final profileAsync = ref.watch(profileProvider);
 
     // Check for critical alerts to notify
     alertsAsync.whenData((alerts) => NotificationService.checkAndNotify(alerts));
@@ -48,9 +44,13 @@ class DashboardScreen extends ConsumerWidget {
                     style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                   ),
                   const Spacer(),
-                  Text(
-                    supabase.auth.currentUser?.email ?? 'User',
-                    style: const TextStyle(fontSize: 14),
+                  profileAsync.when(
+                    data: (profile) => Text(
+                      profile?.name ?? 'User',
+                      style: const TextStyle(fontSize: 14),
+                    ),
+                    loading: () => const Text('Loading...'),
+                    error: (_, __) => const Text('Error'),
                   ),
                 ],
               ),

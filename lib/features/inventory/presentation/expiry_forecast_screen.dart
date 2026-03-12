@@ -1,18 +1,33 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
-import 'package:intl/intl.dart';
+import 'package:medistock_pro/core/neon_client.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 final expiryForecastProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  // Fetch batches expiring in 6 months
-  final data = await supabase
-      .from('medi_batches')
-      .select('*, medi_products(name, gst_percent)')
-      .lte('expiry_date', DateTime.now().add(const Duration(days: 180)).toIso8601String())
-      .gt('quantity', 0)
-      .order('expiry_date');
-  return List<Map<String, dynamic>>.from(data);
+  final tenantId = await AuthService().getTenantId();
+  if (tenantId == null) return [];
+
+  final result = await neonClient.query(
+    '''
+    SELECT b.*, p.name as product_name
+    FROM medi_batches b
+    JOIN medi_products p ON b.product_id = p.id
+    WHERE b.tenant_id = @tenantId
+    AND b.expiry_date <= @forecastDate
+    AND b.quantity > 0
+    ORDER BY b.expiry_date ASC
+    ''',
+    substitutionValues: {
+      'tenantId': tenantId,
+      'forecastDate': DateTime.now().add(const Duration(days: 180)).toIso8601String(),
+    },
+  );
+  
+  return result.map((row) {
+    final data = row.toColumnMap();
+    return {
+      ...data,
+      'medi_products': {'name': data['product_name']}
+    };
+  }).toList();
 });
 
 class ExpiryForecastScreen extends ConsumerWidget {

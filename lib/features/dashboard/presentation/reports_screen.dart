@@ -1,23 +1,35 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:intl/intl.dart';
+import 'package:medistock_pro/core/neon_client.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 final reportsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final sales = await supabase.from('medi_sales_invoices').select('total_amount, tax_amount');
-  final purchases = await supabase.from('medi_purchase_invoices').select('total_amount, tax_amount');
-  
-  double totalSales = sales.fold(0.0, (sum, item) => sum + (item['total_amount'] as num).toDouble());
-  double totalPurchases = purchases.fold(0.0, (sum, item) => sum + (item['total_amount'] as num).toDouble());
-  double totalTax = sales.fold(0.0, (sum, item) => sum + (item['tax_amount'] as num).toDouble());
-  
+  final tenantId = await AuthService().getTenantId();
+  if (tenantId == null) return {};
+
+  final salesResult = await neonClient.query(
+    'SELECT SUM(total_amount) as total_sales, SUM(tax_amount) as total_tax, COUNT(*) as sales_count FROM medi_sales_invoices WHERE tenant_id = @tenantId',
+    substitutionValues: {'tenantId': tenantId},
+  );
+
+  final purchaseResult = await neonClient.query(
+    'SELECT SUM(total_amount) as total_purchases, COUNT(*) as purchase_count FROM medi_purchase_invoices WHERE tenant_id = @tenantId',
+    substitutionValues: {'tenantId': tenantId},
+  );
+
+  final sales = salesResult[0].toColumnMap();
+  final purchases = purchaseResult[0].toColumnMap();
+
+  double totalSales = (sales['total_sales'] ?? 0.0).toDouble();
+  double totalPurchases = (purchases['total_purchases'] ?? 0.0).toDouble();
+  double totalTax = (sales['total_tax'] ?? 0.0).toDouble();
+
   return {
     'total_sales': totalSales,
     'total_purchases': totalPurchases,
     'total_tax': totalTax,
     'net_profit': totalSales - totalPurchases,
-    'sales_count': sales.length,
-    'purchase_count': purchases.length,
+    'sales_count': sales['sales_count'] ?? 0,
+    'purchase_count': purchases['purchase_count'] ?? 0,
   };
 });
 

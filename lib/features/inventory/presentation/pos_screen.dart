@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
+import 'package:medistock_pro/core/neon_client.dart';
 import 'package:medistock_pro/features/inventory/repositories/sales_repository.dart';
-
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/inventory/services/pdf_service.dart';
 
-
-final salesRepositoryProvider = Provider((ref) => SalesRepository(supabase));
-
+final salesRepositoryProvider = Provider((ref) => SalesRepository());
 
 class POSScreen extends ConsumerStatefulWidget {
   const POSScreen({super.key});
@@ -37,17 +35,38 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       return;
     }
 
+    final tenantId = await AuthService().getTenantId();
+    if (tenantId == null) return;
+
     setState(() => _isSearching = true);
     try {
-      final results = await supabase
-          .from('medi_batches')
-          .select('*, medi_products(name, gst_percent)')
-          .ilike('medi_products.name', '%$query%')
-          .gt('quantity', 0)
-          .limit(10);
+      final result = await neonClient.query(
+        '''
+        SELECT b.*, p.name as product_name, p.gst_percent 
+        FROM medi_batches b
+        JOIN medi_products p ON b.product_id = p.id
+        WHERE b.tenant_id = @tenantId 
+        AND p.name ILIKE @query
+        AND b.quantity > 0
+        LIMIT 10
+        ''',
+        substitutionValues: {
+          'tenantId': tenantId,
+          'query': '%$query%',
+        },
+      );
       
       setState(() {
-        _searchResults = List<Map<String, dynamic>>.from(results);
+        _searchResults = result.map((row) {
+          final data = row.toColumnMap();
+          return {
+            ...data,
+            'medi_products': {
+              'name': data['product_name'],
+              'gst_percent': data['gst_percent'],
+            }
+          };
+        }).toList();
       });
     } catch (e) {
       debugPrint('Search error: $e');
@@ -185,7 +204,6 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                             setState(() {
                               if (item['qty'] > 1) {
                                 item['qty']--;
-                                // Recalculate based on new qty
                               } else {
                                 _cart.removeAt(index);
                               }

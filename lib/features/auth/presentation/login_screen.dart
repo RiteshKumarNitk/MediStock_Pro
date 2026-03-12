@@ -1,7 +1,4 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-import 'package:medistock_pro/core/supabase_client.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -13,6 +10,7 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _authService = AuthService();
   bool _isLoading = false;
 
   Future<void> _signIn() async {
@@ -21,25 +19,29 @@ class _LoginScreenState extends State<LoginScreen> {
     });
 
     try {
-      await supabase.auth.signInWithPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+      final user = await _authService.login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
       );
-    } on AuthException catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(error.message),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
+
+      if (user != null) {
+        if (mounted) context.go('/dashboard');
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Invalid email or password'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (error) {
        if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Unexpected error occurred'),
-            backgroundColor: Theme.of(context).colorScheme.error,
+            content: Text('Error: $error'),
+            backgroundColor: Colors.red,
           ),
         );
       }

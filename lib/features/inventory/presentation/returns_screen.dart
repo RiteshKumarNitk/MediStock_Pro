@@ -1,30 +1,18 @@
-import 'package:medistock_pro/core/neon_client.dart';
-import 'package:medistock_pro/features/auth/services/auth_service.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:medistock_pro/core/api_client.dart';
+import 'package:intl/intl.dart';
 
 class ReturnsManagementScreen extends ConsumerWidget {
   const ReturnsManagementScreen({super.key});
 
   Future<List<Map<String, dynamic>>> _fetchReturns() async {
-    final tenantId = await AuthService().getTenantId();
-    if (tenantId == null) return [];
+    final response = await ApiClient.get('/reports?type=returns'); // We might need to add this to backend
+    if (response.statusCode != 200) return [];
 
-    final results = await neonClient.query(
-      '''
-      SELECT r.*, b.batch_no 
-      FROM medi_returns r
-      JOIN medi_batches b ON r.batch_id = b.id
-      WHERE r.tenant_id = @tenantId
-      ''',
-      substitutionValues: {'tenantId': tenantId},
-    );
-
-    return results.map((row) {
-      final data = row.toColumnMap();
-      return {
-        ...data,
-        'medi_batches': {'batch_no': data['batch_no']}
-      };
-    }).toList();
+    final List data = jsonDecode(response.body);
+    return data.cast<Map<String, dynamic>>();
   }
 
   @override

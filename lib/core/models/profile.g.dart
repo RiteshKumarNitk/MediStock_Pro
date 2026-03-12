@@ -11,6 +11,7 @@ _$ProfileImpl _$$ProfileImplFromJson(Map<String, dynamic> json) =>
       id: json['id'] as String,
       tenantId: json['tenantId'] as String,
       role: json['role'] as String,
+      name: json['name'] as String?,
       createdAt: json['createdAt'] == null
           ? null
           : DateTime.parse(json['createdAt'] as String),
@@ -21,5 +22,6 @@ Map<String, dynamic> _$$ProfileImplToJson(_$ProfileImpl instance) =>
       'id': instance.id,
       'tenantId': instance.tenantId,
       'role': instance.role,
+      'name': instance.name,
       'createdAt': instance.createdAt?.toIso8601String(),
     };

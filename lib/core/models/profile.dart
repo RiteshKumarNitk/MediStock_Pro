@@ -9,6 +9,7 @@ class Profile with _$Profile {
     required String id,
     required String tenantId,
     required String role,
+    String? name,
     DateTime? createdAt,
   }) = _Profile;
 

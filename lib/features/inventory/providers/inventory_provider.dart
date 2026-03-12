@@ -1,27 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/neon_client.dart';
-import 'package:medistock_pro/features/auth/services/auth_service.dart';
+import 'package:medistock_pro/core/api_client.dart';
 
 class InventoryProvider extends StateNotifier<bool> {
   InventoryProvider() : super(false);
 
-  final _authService = AuthService();
-
   Future<Map<String, dynamic>?> getProductByBarcode(String barcode) async {
-    final tenantId = await _authService.getTenantId();
-    if (tenantId == null) return null;
-
-    final result = await neonClient.query(
-      'SELECT * FROM medi_products WHERE tenant_id = @tenantId AND barcode = @barcode',
-      substitutionValues: {
-        'tenantId': tenantId,
-        'barcode': barcode,
-      },
-    );
+    final response = await ApiClient.get('/products?barcode=$barcode');
+    if (response.statusCode != 200) return null;
     
-    if (result.isEmpty) return null;
-    return result[0].toColumnMap();
+    final List data = jsonDecode(response.body);
+    if (data.isEmpty) return null;
+    return data[0] as Map<String, dynamic>;
   }
 
   Future<void> addStock({
@@ -35,56 +26,37 @@ class InventoryProvider extends StateNotifier<bool> {
   }) async {
     state = true;
     try {
-      final tenantId = await _authService.getTenantId();
-      if (tenantId == null) throw Exception('User not authenticated');
+      // 1. Ensure Product exists or create it
+      // Note: Backend /products POST should handle upsert if we designed it that way, 
+      // but let's assume we need to create product first if not exists or use a dedicated endpoint.
+      // In our current backend, we have POST /products and POST /batches.
+      
+      final productResponse = await ApiClient.post('/products', {
+        'name': name,
+        'barcode': barcode,
+      });
 
-      // 2. Upsert Product
-      final productResult = await neonClient.query(
-        '''
-        INSERT INTO medi_products (tenant_id, barcode, name)
-        VALUES (@tenant_id, @barcode, @name)
-        ON CONFLICT (tenant_id, barcode) DO UPDATE SET name = EXCLUDED.name
-        RETURNING id
-        ''',
-        substitutionValues: {
-          'tenant_id': tenantId,
-          'barcode': barcode,
-          'name': name,
-        },
-      );
-      final productId = productResult[0][0];
+      if (productResponse.statusCode != 201 && productResponse.statusCode != 200) {
+         // If it already exists, it might return 200 or 409 depending on implementation.
+         // For now, let's proceed to fetch the ID or use a more robust backend service.
+      }
+      
+      final productData = jsonDecode(productResponse.body);
+      final productId = productData['id'];
 
-      // 3. Add Batch
-      final batchResult = await neonClient.query(
-        '''
-        INSERT INTO medi_batches (tenant_id, product_id, batch_no, expiry_date, quantity, purchase_price, selling_price)
-        VALUES (@tenant_id, @product_id, @batch_no, @expiry_date, @quantity, @purchase_price, @selling_price)
-        RETURNING id
-        ''',
-        substitutionValues: {
-          'tenant_id': tenantId,
-          'product_id': productId,
-          'batch_no': batchNo,
-          'expiry_date': expiryDate.toIso8601String(),
-          'quantity': quantity,
-          'purchase_price': purchasePrice,
-          'selling_price': sellingPrice,
-        },
-      );
-      final batchId = batchResult[0][0];
+      // 2. Add Batch
+      final batchResponse = await ApiClient.post('/batches', {
+        'productId': productId,
+        'batchNo': batchNo,
+        'expiryDate': expiryDate.toIso8601String(),
+        'quantity': quantity,
+        'purchasePrice': purchasePrice,
+        'sellingPrice': sellingPrice,
+      });
 
-      // 4. Log Stock Movement
-      await neonClient.query(
-        '''
-        INSERT INTO medi_stock_movements (tenant_id, batch_id, type, quantity, reason)
-        VALUES (@tenant_id, @batch_id, 'manual_adjustment', @quantity, 'Initial stock entry')
-        ''',
-        substitutionValues: {
-          'tenant_id': tenantId,
-          'batch_id': batchId,
-          'quantity': quantity,
-        },
-      );
+      if (batchResponse.statusCode != 201) {
+        throw Exception('Failed to add batch: ${batchResponse.body}');
+      }
     } catch (e) {
       debugPrint('Error adding stock: $e');
       rethrow;

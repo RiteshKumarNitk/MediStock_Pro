@@ -24,6 +24,7 @@ mixin _$Profile {
   String get id => throw _privateConstructorUsedError;
   String get tenantId => throw _privateConstructorUsedError;
   String get role => throw _privateConstructorUsedError;
+  String? get name => throw _privateConstructorUsedError;
   DateTime? get createdAt => throw _privateConstructorUsedError;
 
   /// Serializes this Profile to a JSON map.
@@ -40,7 +41,13 @@ abstract class $ProfileCopyWith<$Res> {
   factory $ProfileCopyWith(Profile value, $Res Function(Profile) then) =
       _$ProfileCopyWithImpl<$Res, Profile>;
   @useResult
-  $Res call({String id, String tenantId, String role, DateTime? createdAt});
+  $Res call({
+    String id,
+    String tenantId,
+    String role,
+    String? name,
+    DateTime? createdAt,
+  });
 }
 
 /// @nodoc
@@ -61,6 +68,7 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
     Object? id = null,
     Object? tenantId = null,
     Object? role = null,
+    Object? name = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -77,6 +85,10 @@ class _$ProfileCopyWithImpl<$Res, $Val extends Profile>
                 ? _value.role
                 : role // ignore: cast_nullable_to_non_nullable
                       as String,
+            name: freezed == name
+                ? _value.name
+                : name // ignore: cast_nullable_to_non_nullable
+                      as String?,
             createdAt: freezed == createdAt
                 ? _value.createdAt
                 : createdAt // ignore: cast_nullable_to_non_nullable
@@ -95,7 +107,13 @@ abstract class _$$ProfileImplCopyWith<$Res> implements $ProfileCopyWith<$Res> {
   ) = __$$ProfileImplCopyWithImpl<$Res>;
   @override
   @useResult
-  $Res call({String id, String tenantId, String role, DateTime? createdAt});
+  $Res call({
+    String id,
+    String tenantId,
+    String role,
+    String? name,
+    DateTime? createdAt,
+  });
 }
 
 /// @nodoc
@@ -115,6 +133,7 @@ class __$$ProfileImplCopyWithImpl<$Res>
     Object? id = null,
     Object? tenantId = null,
     Object? role = null,
+    Object? name = freezed,
     Object? createdAt = freezed,
   }) {
     return _then(
@@ -131,6 +150,10 @@ class __$$ProfileImplCopyWithImpl<$Res>
             ? _value.role
             : role // ignore: cast_nullable_to_non_nullable
                   as String,
+        name: freezed == name
+            ? _value.name
+            : name // ignore: cast_nullable_to_non_nullable
+                  as String?,
         createdAt: freezed == createdAt
             ? _value.createdAt
             : createdAt // ignore: cast_nullable_to_non_nullable
@@ -147,6 +170,7 @@ class _$ProfileImpl implements _Profile {
     required this.id,
     required this.tenantId,
     required this.role,
+    this.name,
     this.createdAt,
   });
 
@@ -160,11 +184,13 @@ class _$ProfileImpl implements _Profile {
   @override
   final String role;
   @override
+  final String? name;
+  @override
   final DateTime? createdAt;
 
   @override
   String toString() {
-    return 'Profile(id: $id, tenantId: $tenantId, role: $role, createdAt: $createdAt)';
+    return 'Profile(id: $id, tenantId: $tenantId, role: $role, name: $name, createdAt: $createdAt)';
   }
 
   @override
@@ -176,13 +202,15 @@ class _$ProfileImpl implements _Profile {
             (identical(other.tenantId, tenantId) ||
                 other.tenantId == tenantId) &&
             (identical(other.role, role) || other.role == role) &&
+            (identical(other.name, name) || other.name == name) &&
             (identical(other.createdAt, createdAt) ||
                 other.createdAt == createdAt));
   }
 
   @JsonKey(includeFromJson: false, includeToJson: false)
   @override
-  int get hashCode => Object.hash(runtimeType, id, tenantId, role, createdAt);
+  int get hashCode =>
+      Object.hash(runtimeType, id, tenantId, role, name, createdAt);
 
   /// Create a copy of Profile
   /// with the given fields replaced by the non-null parameter values.
@@ -203,6 +231,7 @@ abstract class _Profile implements Profile {
     required final String id,
     required final String tenantId,
     required final String role,
+    final String? name,
     final DateTime? createdAt,
   }) = _$ProfileImpl;
 
@@ -214,6 +243,8 @@ abstract class _Profile implements Profile {
   String get tenantId;
   @override
   String get role;
+  @override
+  String? get name;
   @override
   DateTime? get createdAt;
 

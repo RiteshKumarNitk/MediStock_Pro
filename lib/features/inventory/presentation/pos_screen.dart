@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:medistock_pro/core/neon_client.dart';
+import 'dart:convert';
+import 'package:medistock_pro/core/api_client.dart';
 import 'package:medistock_pro/features/inventory/repositories/sales_repository.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/inventory/services/pdf_service.dart';
@@ -35,38 +36,24 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       return;
     }
 
-    final tenantId = await AuthService().getTenantId();
-    if (tenantId == null) return;
-
     setState(() => _isSearching = true);
     try {
-      final result = await neonClient.query(
-        '''
-        SELECT b.*, p.name as product_name, p.gst_percent 
-        FROM medi_batches b
-        JOIN medi_products p ON b.product_id = p.id
-        WHERE b.tenant_id = @tenantId 
-        AND p.name ILIKE @query
-        AND b.quantity > 0
-        LIMIT 10
-        ''',
-        substitutionValues: {
-          'tenantId': tenantId,
-          'query': '%$query%',
-        },
-      );
+      final response = await ApiClient.get('/batches?query=$query&inStock=true');
+      if (response.statusCode != 200) return;
+
+      final List data = jsonDecode(response.body);
       
       setState(() {
-        _searchResults = result.map((row) {
-          final data = row.toColumnMap();
+        _searchResults = data.map((item) {
+          final map = Map<String, dynamic>.from(item as Map);
           return {
-            ...data,
+            ...map,
             'medi_products': {
-              'name': data['product_name'],
-              'gst_percent': data['gst_percent'],
+              'name': map['product']?['name'] ?? 'Unknown',
+              'gst_percent': map['product']?['gstPercent'] ?? 0,
             }
           };
-        }).toList();
+        }).toList().cast<Map<String, dynamic>>();
       });
     } catch (e) {
       debugPrint('Search error: $e');

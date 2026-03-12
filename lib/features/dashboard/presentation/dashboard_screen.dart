@@ -1,5 +1,11 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/auth/providers/profile_provider.dart';
+import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
+import 'package:medistock_pro/core/notification_service.dart';
+import 'package:medistock_pro/features/inventory/presentation/expiry_alerts_screen.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});

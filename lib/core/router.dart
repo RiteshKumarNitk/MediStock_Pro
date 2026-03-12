@@ -1,3 +1,16 @@
+import 'package:go_router/go_router.dart';
+import 'package:medistock_pro/features/auth/presentation/login_screen.dart';
+import 'package:medistock_pro/features/auth/presentation/register_screen.dart';
+import 'package:medistock_pro/features/dashboard/presentation/dashboard_screen.dart';
+import 'package:medistock_pro/features/dashboard/presentation/reports_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/inventory_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/add_product_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/scanner_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/scan_invoice_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/returns_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/invoices_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/pos_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/expiry_forecast_screen.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
 final authService = AuthService();

@@ -1,33 +1,21 @@
-import 'package:medistock_pro/core/neon_client.dart';
-import 'package:medistock_pro/features/auth/services/auth_service.dart';
+import 'dart:convert';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:medistock_pro/core/api_client.dart';
+import 'package:intl/intl.dart';
 
 final expiryForecastProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final tenantId = await AuthService().getTenantId();
-  if (tenantId == null) return [];
+  final response = await ApiClient.get('/reports?type=expiry');
+  if (response.statusCode != 200) return [];
 
-  final result = await neonClient.query(
-    '''
-    SELECT b.*, p.name as product_name
-    FROM medi_batches b
-    JOIN medi_products p ON b.product_id = p.id
-    WHERE b.tenant_id = @tenantId
-    AND b.expiry_date <= @forecastDate
-    AND b.quantity > 0
-    ORDER BY b.expiry_date ASC
-    ''',
-    substitutionValues: {
-      'tenantId': tenantId,
-      'forecastDate': DateTime.now().add(const Duration(days: 180)).toIso8601String(),
-    },
-  );
-  
-  return result.map((row) {
-    final data = row.toColumnMap();
+  final List data = jsonDecode(response.body);
+  return data.map((item) {
+    final map = Map<String, dynamic>.from(item as Map);
     return {
-      ...data,
-      'medi_products': {'name': data['product_name']}
+      ...map,
+      'medi_products': {'name': map['product']['name']}
     };
-  }).toList();
+  }).toList().cast<Map<String, dynamic>>();
 });
 
 class ExpiryForecastScreen extends ConsumerWidget {

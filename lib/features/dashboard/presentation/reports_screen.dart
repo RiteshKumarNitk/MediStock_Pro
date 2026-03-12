@@ -1,35 +1,25 @@
+import 'dart:convert';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/neon_client.dart';
-import 'package:medistock_pro/features/auth/services/auth_service.dart';
+import 'package:medistock_pro/core/api_client.dart';
 
 final reportsProvider = FutureProvider<Map<String, dynamic>>((ref) async {
-  final tenantId = await AuthService().getTenantId();
-  if (tenantId == null) return {};
+  final response = await ApiClient.get('/reports?type=summary');
+  if (response.statusCode != 200) return {};
 
-  final salesResult = await neonClient.query(
-    'SELECT SUM(total_amount) as total_sales, SUM(tax_amount) as total_tax, COUNT(*) as sales_count FROM medi_sales_invoices WHERE tenant_id = @tenantId',
-    substitutionValues: {'tenantId': tenantId},
-  );
+  final data = jsonDecode(response.body);
 
-  final purchaseResult = await neonClient.query(
-    'SELECT SUM(total_amount) as total_purchases, COUNT(*) as purchase_count FROM medi_purchase_invoices WHERE tenant_id = @tenantId',
-    substitutionValues: {'tenantId': tenantId},
-  );
-
-  final sales = salesResult[0].toColumnMap();
-  final purchases = purchaseResult[0].toColumnMap();
-
-  double totalSales = (sales['total_sales'] ?? 0.0).toDouble();
-  double totalPurchases = (purchases['total_purchases'] ?? 0.0).toDouble();
-  double totalTax = (sales['total_tax'] ?? 0.0).toDouble();
+  double totalSales = (data['sales'] ?? 0.0).toDouble();
+  double totalPurchases = (data['purchases'] ?? 0.0).toDouble();
+  double totalTax = (data['tax'] ?? 0.0).toDouble();
 
   return {
     'total_sales': totalSales,
     'total_purchases': totalPurchases,
     'total_tax': totalTax,
     'net_profit': totalSales - totalPurchases,
-    'sales_count': sales['sales_count'] ?? 0,
-    'purchase_count': purchases['purchase_count'] ?? 0,
+    'sales_count': data['salesCount'] ?? 0,
+    'purchase_count': data['purchaseCount'] ?? 0,
   };
 });
 

@@ -1,18 +1,19 @@
+import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:medistock_pro/core/neon_client.dart';
-import 'package:medistock_pro/features/auth/services/auth_service.dart';
-
-// ... (ExpiryAlert class remains same)
+import 'package:medistock_pro/core/api_client.dart';
+import 'package:medistock_pro/features/inventory/models/expiry_alert.dart';
 
 final expiryAlertsProvider = FutureProvider<List<ExpiryAlert>>((ref) async {
-  final tenantId = await AuthService().getTenantId();
-  if (tenantId == null) return [];
+  final response = await ApiClient.get('/reports?type=expiry'); // Using expiry report for alerts
+  if (response.statusCode != 200) return [];
 
-  // Assuming medi_expiry_alerts is a view in Neon DB
-  final result = await neonClient.query(
-    'SELECT * FROM medi_expiry_alerts WHERE tenant_id = @tenantId ORDER BY days_remaining ASC',
-    substitutionValues: {'tenantId': tenantId},
-  );
-  
-  return result.map((row) => ExpiryAlert.fromJson(row.toColumnMap())).toList();
+  final List data = jsonDecode(response.body);
+  return data.map((item) {
+    // Map backend batch to ExpiryAlert model
+    return ExpiryAlert.fromJson({
+      ...item,
+      'product_name': item['product']['name'],
+      'days_remaining': DateTime.parse(item['expiryDate']).difference(DateTime.now()).inDays,
+    });
+  }).toList();
 });

@@ -7,6 +7,8 @@ import 'package:medistock_pro/features/inventory/providers/inventory_providers.d
 import 'package:medistock_pro/core/notification_service.dart';
 import 'package:medistock_pro/features/inventory/presentation/expiry_alerts_screen.dart';
 
+import 'package:medistock_pro/core/app_theme.dart';
+
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
@@ -27,97 +29,106 @@ class DashboardScreen extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         title: const Text('MediStock Pro'),
+        elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => _signOut(context),
+          profileAsync.when(
+            data: (profile) => Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: CircleAvatar(
+                backgroundColor: AppTheme.primaryColor.withOpacity(0.1),
+                child: Text(
+                  profile?.name?[0].toUpperCase() ?? 'U',
+                  style: const TextStyle(color: AppTheme.primaryColor),
+                ),
+              ),
+            ),
+            loading: () => const SizedBox(),
+            error: (_, __) => const SizedBox(),
           ),
         ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
+        backgroundColor: Colors.white,
+        child: Column(
           children: [
-            DrawerHeader(
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.primaryContainer,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'MediStock Pro',
-                    style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            profileAsync.when(
+              data: (profile) => UserAccountsDrawerHeader(
+                decoration: const BoxDecoration(
+                  gradient: AppTheme.primaryGradient,
+                ),
+                accountName: Text(profile?.name ?? 'Premium User', style: const TextStyle(fontWeight: FontWeight.bold)),
+                accountEmail: Text(profile?.email ?? 'store@medistock.com'),
+                currentAccountPicture: CircleAvatar(
+                  backgroundColor: Colors.white,
+                  child: Text(
+                    profile?.name?[0].toUpperCase() ?? 'M',
+                    style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor),
                   ),
-                  const Spacer(),
-                  profileAsync.when(
-                    data: (profile) => Text(
-                      profile?.name ?? 'User',
-                      style: const TextStyle(fontSize: 14),
-                    ),
-                    loading: () => const Text('Loading...'),
-                    error: (_, __) => const Text('Error'),
-                  ),
-                ],
+                ),
               ),
+              loading: () => const DrawerHeader(child: Center(child: CircularProgressIndicator())),
+              error: (_, __) => const DrawerHeader(child: Center(child: Text('Error loading profile'))),
             ),
-            ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Dashboard'),
-              onTap: () => context.go('/dashboard'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('Inventory'),
-              onTap: () => context.go('/inventory'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.warning_amber),
-              title: const Text('Expiry Alerts'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => const ExpiryAlertsScreen()),
-                );
-              },
-            ),
+            _buildDrawerTile(context, 'Dashboard', Icons.dashboard_rounded, '/dashboard', isSelected: true),
+            _buildDrawerTile(context, 'Inventory', Icons.inventory_2_rounded, '/inventory'),
+            _buildDrawerTile(context, 'Expiry Alerts', Icons.notification_important_rounded, '/inventory/expiry-alerts', isSubPage: true),
+            const Spacer(),
             const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
+              leading: const Icon(Icons.logout_rounded, color: AppTheme.errorColor),
+              title: const Text('Sign Out', style: TextStyle(color: AppTheme.errorColor)),
               onTap: () => _signOut(context),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Store Overview',
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold),
+            profileAsync.when(
+              data: (profile) => Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Welcome back,',
+                    style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: Colors.black54),
+                  ),
+                  Text(
+                    profile?.name ?? 'Valued Partner',
+                    style: Theme.of(context).textTheme.headlineLarge,
+                  ),
+                ],
+              ),
+              loading: () => const SizedBox(height: 50),
+              error: (_, __) => const SizedBox(height: 50),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 32),
+            Text(
+              'Performance Overview',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 20),
             GridView.count(
               shrinkWrap: true,
               physics: const NeverScrollableScrollPhysics(),
               crossAxisCount: 2,
-              crossAxisSpacing: 16,
-              mainAxisSpacing: 16,
+              crossAxisSpacing: 20,
+              mainAxisSpacing: 20,
+              childAspectRatio: 1.1,
               children: [
                 _buildKPICard(
                   context,
-                  'Total Products',
+                   'Active Stock',
                   productsAsync.when(
                     data: (p) => p.length.toString(),
                     loading: () => '...',
                     error: (_, __) => '!',
                   ),
-                  Icons.medication,
-                  Colors.blue,
+                  Icons.medication_liquid_rounded,
+                  AppTheme.primaryColor,
                 ),
                 _buildKPICard(
                   context,
@@ -127,138 +138,151 @@ class DashboardScreen extends ConsumerWidget {
                     loading: () => '...',
                     error: (_, __) => '!',
                   ),
-                  Icons.warning,
-                  Colors.orange,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ExpiryAlertsScreen()),
-                  ),
+                  Icons.auto_graph_rounded,
+                  Colors.orangeAccent,
+                  onTap: () => context.go('/inventory/expiry-alerts'),
                 ),
                 _buildKPICard(
                   context,
-                  'Expired Stock',
-                  alertsAsync.when(
-                    data: (a) => a.where((i) => i.daysRemaining <= 0).length.toString(),
-                    loading: () => '...',
-                    error: (_, __) => '!',
-                  ),
-                  Icons.cancel,
-                  Colors.red,
-                  onTap: () => Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const ExpiryAlertsScreen()),
-                  ),
-                ),
-                _buildKPICard(
-                  context,
-                  'Scan Invoice',
-                  'AI Scan',
-                  Icons.document_scanner,
-                  Colors.purple,
+                  'AI Image Scan',
+                  'Process',
+                  Icons.document_scanner_rounded,
+                  AppTheme.secondaryColor,
                   onTap: () => context.go('/inventory/invoice-scan'),
-                ),
-                _buildKPICard(
-                  context,
-                  'Invoice History',
-                  'Invoices',
-                  Icons.history_edu,
-                  Colors.teal,
-                  onTap: () => context.go('/inventory/invoices'),
                 ),
                 _buildKPICard(
                   context,
                   'New Sale (POS)',
                   'Billing',
-                  Icons.point_of_sale,
-                  Colors.orange,
+                  Icons.point_of_sale_rounded,
+                  AppTheme.accentColor,
                   onTap: () => context.go('/inventory/pos'),
-                ),
-                _buildKPICard(
-                  context,
-                  'Analytics',
-                  'Reports',
-                  Icons.analytics,
-                  Colors.indigo,
-                  onTap: () => context.go('/inventory/reports'),
-                ),
-                _buildKPICard(
-                  context,
-                  'Expiry Forecast',
-                  'Projection',
-                  Icons.calendar_month,
-                  Colors.amber,
-                  onTap: () => context.go('/inventory/expiry-forecast'),
                 ),
               ],
             ),
-
-
-
-
-            const SizedBox(height: 24),
-            Text(
-              'Quick Actions',
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+            const SizedBox(height: 40),
+            _buildPremiumSectionHeader(context, 'Intelligence Tools'),
+            const SizedBox(height: 16),
+            _buildToolCard(
+              context,
+              'Expiry Forecast',
+              'Advanced AI projection for stock management',
+              Icons.trending_up_rounded,
+              AppTheme.primaryColor,
+              () => context.go('/inventory/expiry-forecast'),
             ),
             const SizedBox(height: 12),
-            _buildActionItem(
+            _buildToolCard(
               context,
-              'Scan Barcode',
-              Icons.qr_code_scanner,
-              () => context.go('/inventory/scan'),
+              'Inventory Analytics',
+              'Data-driven insights for your pharmacy',
+              Icons.analytics_rounded,
+              AppTheme.secondaryColor,
+              () => context.go('/inventory/reports'),
             ),
-            _buildActionItem(
-              context,
-              'Manage Returns',
-              Icons.keyboard_return,
-              () => context.go('/inventory/returns'),
-            ),
-
+            const SizedBox(height: 40),
           ],
         ),
       ),
     );
   }
 
+  Widget _buildDrawerTile(BuildContext context, String title, IconData icon, String route, {bool isSelected = false, bool isSubPage = false}) {
+    return ListTile(
+      leading: Icon(icon, color: isSelected ? AppTheme.primaryColor : Colors.black54),
+      title: Text(title, style: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+      onTap: () {
+        if (isSubPage) {
+           Navigator.pop(context); // Close drawer
+           context.push(route);
+        } else {
+           context.go(route);
+        }
+      },
+      selected: isSelected,
+      selectedTileColor: AppTheme.primaryColor.withOpacity(0.05),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+    );
+  }
+
   Widget _buildKPICard(BuildContext context, String title, String value, IconData icon, Color color, {VoidCallback? onTap}) {
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(icon, size: 32, color: color),
-              const SizedBox(height: 8),
-              Text(
-                value,
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.1), blurRadius: 15, offset: const Offset(0, 8)),
+        ],
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(24),
+          child: Padding(
+            padding: const EdgeInsets.all(20.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: color.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon, size: 24, color: color),
+                ),
+                const Spacer(),
+                Text(
+                  value,
+                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -1),
+                ),
+                Text(
+                  title,
+                  style: const TextStyle(fontSize: 12, color: Colors.black45, fontWeight: FontWeight.w500),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildActionItem(BuildContext context, String title, IconData icon, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title),
-      trailing: const Icon(Icons.chevron_right),
-      onTap: onTap,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      tileColor: Colors.grey.shade100,
+  Widget _buildToolCard(BuildContext context, String title, String desc, IconData icon, Color color, VoidCallback onTap) {
+    return Card(
+      elevation: 0,
+      margin: EdgeInsets.zero,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(20),
+        side: BorderSide(color: Colors.grey.shade100),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: const EdgeInsets.all(16),
+        leading: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: color),
+        ),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(desc, style: const TextStyle(fontSize: 12)),
+        trailing: const Icon(Icons.arrow_forward_ios_rounded, size: 16, color: Colors.black26),
+      ),
+    );
+  }
+
+  Widget _buildPremiumSectionHeader(BuildContext context, String title) {
+    return Row(
+      children: [
+        Container(width: 4, height: 24, color: AppTheme.primaryColor),
+        const SizedBox(width: 12),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
+      ],
     );
   }
 }

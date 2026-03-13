@@ -1,38 +1,45 @@
 import 'dart:convert';
-class OCRService {
+import 'package:image_picker/image_picker.dart';
+import 'package:medistock_pro/core/api_client.dart';
 
-  /// Parses the raw OCR result into a structured Invoice and its Items.
-  /// This logic would typically live in a Supabase Edge Function,
-  /// but we provide the client-side parsing/interface here.
-  static Map<String, dynamic> parseOCRResult(String rawJson) {
+class OCRService {
+  /// Extract information from image using AI backend
+  static Future<Map<String, dynamic>> extractFromImage(XFile image) async {
     try {
-      final decoded = json.decode(rawJson);
-      // Ensure the structure matches our expected format
-      return decoded;
+      final bytes = await image.readAsBytes();
+      final base64Image = base64Encode(bytes);
+
+      final response = await ApiClient.post('/ai/extract', {
+        'image': base64Image,
+      });
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to extract data: ${response.body}');
+      }
+
+      return json.decode(response.body);
     } catch (e) {
-      throw Exception('Failed to parse OCR JSON: $e');
+      throw Exception('OCR extraction failed: $e');
     }
   }
 
-  /// Example of what the OCR output should look like
+  /// Parses the raw OCR result into a structured Invoice and its Items.
+  static Map<String, dynamic> parseOCRResult(dynamic result) {
+    if (result is String) {
+      return json.decode(result);
+    }
+    return result as Map<String, dynamic>;
+  }
+
+  /// Example of what the OCR output should look like (deprecated)
   static String get exampleOCRJson => '''
   {
-    "invoice_number": "INV-2024-001",
-    "customer_name": "Apollo Pharmacy",
+    "invoice_number": "INV-MOCK-001",
+    "customer_name": "Mock Pharmacy",
     "gstin": "27AAACR1234A1Z5",
-    "items": [
-      {
-        "product_name": "Paracetamol 500mg",
-        "batch_no": "B12345",
-        "expiry_date": "2026-12-31",
-        "qty": 100,
-        "rate": 15.5,
-        "discount": 10.0,
-        "taxable_value": 1395.0
-      }
-    ],
-    "total_amount": 1562.4,
-    "tax_amount": 167.4
+    "items": [],
+    "total_amount": 0,
+    "tax_amount": 0
   }
   ''';
 }

@@ -6,6 +6,7 @@ import 'package:medistock_pro/core/api_client.dart';
 import 'package:medistock_pro/features/inventory/repositories/sales_repository.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/inventory/services/pdf_service.dart';
+import 'package:medistock_pro/core/app_theme.dart';
 
 final salesRepositoryProvider = Provider((ref) => SalesRepository());
 
@@ -99,31 +100,40 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           context: context,
           barrierDismissible: false,
           builder: (context) => AlertDialog(
-            title: const Text('Sale Successful'),
-            content: Text('Invoice #${saleInvoice.invoiceNumber} has been generated.'),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+            title: const Row(
+              children: [
+                Icon(Icons.check_circle_rounded, color: Colors.green),
+                SizedBox(width: 12),
+                Text('Sale Complete'),
+              ],
+            ),
+            content: Text('Invoice #${saleInvoice.invoiceNumber} has been generated successfully.'),
             actions: [
               TextButton(
                 onPressed: () => context.go('/dashboard'),
-                child: const Text('Done'),
+                child: const Text('Back to Dashboard'),
               ),
               ElevatedButton.icon(
-                icon: const Icon(Icons.picture_as_pdf),
+                icon: const Icon(Icons.print_rounded),
                 label: const Text('Print Receipt'),
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white),
                 onPressed: () async {
                   final file = await PDFService.generateSalesInvoicePDF(saleInvoice, _cart);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('PDF Saved: ${file.path.split('/').last}')),
-                  );
+                  if (context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('PDF Generated: ${file.path.split('/').last}')),
+                    );
+                  }
                 },
               ),
             ],
           ),
         );
       }
-
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Checkout Error: $e'), backgroundColor: AppTheme.errorColor),
       );
     }
   }
@@ -131,110 +141,200 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('POS Billing')),
+      backgroundColor: Colors.grey.shade50,
+      appBar: AppBar(
+        title: const Text('New Sale (POS)'),
+        elevation: 0,
+      ),
       body: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(16.0),
+          // Customer & Search Bar
+          Container(
+            padding: const EdgeInsets.all(20),
+            color: Colors.white,
             child: Column(
               children: [
-                TextField(
-                  controller: _customerNameController,
-                  decoration: const InputDecoration(labelText: 'Customer Name', prefixIcon: Icon(Icons.person)),
+                Row(
+                  children: [
+                    Expanded(
+                      flex: 2,
+                      child: TextField(
+                        controller: _customerNameController,
+                        decoration: const InputDecoration(
+                          labelText: 'Customer Name',
+                          prefixIcon: Icon(Icons.person_outline_rounded),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      flex: 1,
+                      child: TextField(
+                        controller: _customerPhoneController,
+                        keyboardType: TextInputType.phone,
+                        decoration: const InputDecoration(
+                          labelText: 'Phone',
+                          prefixIcon: Icon(Icons.phone_rounded, size: 20),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 16),
                 TextField(
                   controller: _searchController,
                   onChanged: _searchBatches,
                   decoration: InputDecoration(
-                    hintText: 'Search Product...',
-                    prefixIcon: const Icon(Icons.search),
-                    suffixIcon: _isSearching ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)) : null,
-                    border: const OutlineInputBorder(),
+                    hintText: 'Search medication or batch...',
+                    prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor),
+                    suffixIcon: _isSearching 
+                      ? const SizedBox(width: 20, height: 20, child: Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))) 
+                      : null,
+                    filled: true,
+                    fillColor: AppTheme.primaryColor.withOpacity(0.05),
+                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: const BorderSide(color: AppTheme.primaryColor, width: 1.5)),
                   ),
                 ),
               ],
             ),
           ),
-          if (_searchResults.isNotEmpty)
-            Flexible(
-              child: ListView.builder(
-                shrinkWrap: true,
-                itemCount: _searchResults.length,
-                itemBuilder: (context, index) {
-                  final res = _searchResults[index];
-                  return ListTile(
-                    title: Text(res['medi_products']['name']),
-                    subtitle: Text('Batch: ${res['batch_no']} | Stock: ${res['quantity']}'),
-                    trailing: Text('₹${res['selling_price'] ?? res['mrp']}'),
-                    onTap: () => _addToCart(res),
-                  );
-                },
-              ),
-            ),
-          const Divider(),
+          
           Expanded(
-            child: ListView.builder(
-              itemCount: _cart.length,
-              itemBuilder: (context, index) {
-                final item = _cart[index];
-                return ListTile(
-                  title: Text(item['product_name']),
-                  subtitle: Text('Batch: ${item['batch_no']}'),
-                  trailing: SizedBox(
-                    width: 150,
-                    child: Row(
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove_circle_outline),
-                          onPressed: () {
-                            setState(() {
-                              if (item['qty'] > 1) {
-                                item['qty']--;
-                              } else {
-                                _cart.removeAt(index);
-                              }
-                            });
-                          },
+            child: Stack(
+              children: [
+                // Cart Items List
+                ListView.builder(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
+                  itemCount: _cart.length,
+                  itemBuilder: (context, index) {
+                    final item = _cart[index];
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 12),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: Colors.grey.shade100),
+                      ),
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        title: Text(item['product_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Batch: ${item['batch_no']} | ₹${item['unit_price']}/unit'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove_circle_outline, color: Colors.black45),
+                              onPressed: () => setState(() {
+                                if (item['qty'] > 1) {
+                                  item['qty']--;
+                                } else {
+                                  _cart.removeAt(index);
+                                }
+                              }),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(8)),
+                              child: Text('${item['qty']}', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.add_circle_outline, color: AppTheme.primaryColor),
+                              onPressed: () => setState(() {
+                                if (item['qty'] < item['max_qty']) {
+                                  item['qty']++;
+                                }
+                              }),
+                            ),
+                          ],
                         ),
-                        Text('${item['qty']}'),
-                        IconButton(
-                          icon: const Icon(Icons.add_circle_outline),
-                          onPressed: () {
-                            setState(() {
-                              if (item['qty'] < item['max_qty']) {
-                                item['qty']++;
-                              }
-                            });
-                          },
+                      ),
+                    );
+                  },
+                ),
+
+                // Search Results Overlay
+                if (_searchResults.isNotEmpty)
+                  Positioned.fill(
+                    child: Container(
+                      color: Colors.black.withOpacity(0.05),
+                      child: Align(
+                        alignment: Alignment.topCenter,
+                        child: Container(
+                          margin: const EdgeInsets.symmetric(horizontal: 20),
+                          constraints: const BoxConstraints(maxHeight: 300),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(16),
+                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20)],
+                          ),
+                          child: ListView.separated(
+                            shrinkWrap: true,
+                            itemCount: _searchResults.length,
+                            separatorBuilder: (_, __) => const Divider(height: 1),
+                            itemBuilder: (context, index) {
+                              final res = _searchResults[index];
+                              return ListTile(
+                                leading: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
+                                title: Text(res['medi_products']['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('Batch: ${res['batch_no']} | Stock: ${res['quantity']}'),
+                                trailing: Text('₹${res['selling_price'] ?? res['mrp']}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+                                onTap: () => _addToCart(res),
+                              );
+                            },
+                          ),
                         ),
-                      ],
+                      ),
                     ),
                   ),
-                );
-              },
+              ],
             ),
           ),
+
+          // Receipt Style Footer
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 10, offset: const Offset(0, -2))],
+              color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text('Total Amount:', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                    Text('₹${_totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.blue)),
+                    const Text('Total Items:', style: TextStyle(color: Colors.black54)),
+                    Text('${_cart.length}', style: const TextStyle(fontWeight: FontWeight.bold)),
                   ],
                 ),
-                const SizedBox(height: 16),
-                ElevatedButton(
-                  onPressed: _checkout,
-                  style: ElevatedButton.styleFrom(minimumSize: const Size(double.infinity, 50)),
-                  child: const Text('Complete Sale & Print'),
+                const SizedBox(height: 8),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text('Net Payable', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w900, letterSpacing: -1)),
+                    Text('₹${_totalAmount.toStringAsFixed(2)}', style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Container(
+                  decoration: BoxDecoration(
+                    gradient: AppTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(color: AppTheme.primaryColor.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8)),
+                    ],
+                  ),
+                  child: ElevatedButton(
+                    onPressed: _checkout,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      minimumSize: const Size(double.infinity, 60),
+                    ),
+                    child: const Text('PROCESS PAYMENT & PRINT', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 1.2)),
+                  ),
                 ),
               ],
             ),

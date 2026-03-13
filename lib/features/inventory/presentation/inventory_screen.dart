@@ -4,12 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
 import 'package:medistock_pro/features/inventory/repositories/inventory_repository.dart';
-
+import 'package:medistock_pro/core/app_theme.dart';
 
 final inventoryListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   return ref.watch(inventoryRepositoryProvider).getInventoryWithTotalQty();
 });
-
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -35,122 +34,144 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Inventory'),
-        bottom: PreferredSize(
-          preferredSize: const Size.fromHeight(60),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            child: TextField(
-              controller: _searchController,
-              onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
-              decoration: InputDecoration(
-                hintText: 'Search by name or barcode...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
+        title: const Text('Inventory Library'),
+        centerTitle: true,
+      ),
+      floatingActionButton: Container(
+        decoration: const BoxDecoration(
+          gradient: AppTheme.primaryGradient,
+          shape: BoxShape.circle,
+        ),
+        child: FloatingActionButton(
+          onPressed: () => context.push('/inventory/add'),
+          backgroundColor: Colors.transparent,
+          elevation: 0,
+          child: const Icon(Icons.add_rounded, color: Colors.white, size: 32),
+        ),
+      ),
+      body: Column(
+        children: [
+          // Elevated Search Section
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+                  BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 15, offset: const Offset(0, 5)),
+                ],
+              ),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
+                decoration: InputDecoration(
+                  hintText: 'Search medications...',
+                  prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor),
+                  border: InputBorder.none,
+                  enabledBorder: InputBorder.none,
+                  focusedBorder: InputBorder.none,
+                  filled: false,
                 ),
-                contentPadding: const EdgeInsets.symmetric(vertical: 0),
               ),
             ),
           ),
-        ),
-      ),
-      drawer: Drawer(
-         child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            DrawerHeader(
-              decoration: BoxDecoration(color: Theme.of(context).colorScheme.primaryContainer),
-              child: const Text('MediStock Pro', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-            ),
-             ListTile(
-              leading: const Icon(Icons.dashboard),
-              title: const Text('Dashboard'),
-              onTap: () => context.go('/dashboard'),
-            ),
-            ListTile(
-              leading: const Icon(Icons.inventory),
-              title: const Text('Inventory'),
-              onTap: () => context.pop(), 
-            ),
-             const Divider(),
-            ListTile(
-              leading: const Icon(Icons.logout),
-              title: const Text('Sign Out'),
-              onTap: () async {
-                 await _authService.logout();
-                 if (mounted) context.go('/login');
-              },
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => context.push('/inventory/add'),
-        child: const Icon(Icons.add),
-      ),
-      body: inventoryAsync.when(
-        data: (products) {
-          final filteredProducts = products.where((p) {
-            final name = p['name'].toString().toLowerCase();
-            final barcode = p['barcode'].toString().toLowerCase();
-            return name.contains(_searchQuery) || barcode.contains(_searchQuery);
-          }).toList();
+          Expanded(
+            child: inventoryAsync.when(
+              data: (products) {
+                final filteredProducts = products.where((p) {
+                  final name = p['name'].toString().toLowerCase();
+                  final barcode = p['barcode'].toString().toLowerCase();
+                  return name.contains(_searchQuery) || barcode.contains(_searchQuery);
+                }).toList();
 
-          if (filteredProducts.isEmpty) {
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.search_off, size: 64, color: Colors.grey),
-                  const SizedBox(height: 16),
-                  Text(_searchQuery.isEmpty ? 'No products found. Add some stock!' : 'No results for "$_searchQuery"'),
-                ],
-              ),
-            );
-          }
-
-          return ListView.builder(
-            padding: const EdgeInsets.all(8),
-            itemCount: filteredProducts.length,
-            itemBuilder: (context, index) {
-              final product = filteredProducts[index];
-              final totalQuantity = product['total_quantity'] ?? 0;
-
-              return Card(
-                elevation: 1,
-                margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                child: ListTile(
-                  title: Text(product['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                  subtitle: Text('Barcode: ${product['barcode']}'),
-                  trailing: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: totalQuantity < 10 ? Colors.red.shade50 : Colors.green.shade50,
-                      borderRadius: BorderRadius.circular(12),
+                if (filteredProducts.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
+                        const SizedBox(height: 24),
+                        Text(
+                          _searchQuery.isEmpty ? 'Inventory is empty' : 'No matches found',
+                          style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
+                        ),
+                      ],
                     ),
-                    child: Text(
-                      'Qty: $totalQuantity',
-                      style: TextStyle(
-                        color: totalQuantity < 10 ? Colors.red : Colors.green,
-                        fontWeight: FontWeight.bold,
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  itemCount: filteredProducts.length,
+                  itemBuilder: (context, index) {
+                    final product = filteredProducts[index];
+                    final totalQuantity = product['total_quantity'] ?? 0;
+                    final bool isLowStock = totalQuantity < 10;
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.grey.shade100),
                       ),
-                    ),
-                  ),
-                  onTap: () {
-                    // TODO: View product details
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.all(16),
+                        leading: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: AppTheme.primaryColor.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          child: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
+                        ),
+                        title: Text(
+                          product['name'],
+                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                        ),
+                        subtitle: Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Text('Barcode: ${product['barcode']}', style: const TextStyle(fontSize: 12)),
+                        ),
+                        trailing: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: isLowStock ? Colors.red.shade50 : Colors.green.shade50,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text(
+                                isLowStock ? 'LOW STOCK' : 'IN STOCK',
+                                style: TextStyle(
+                                  color: isLowStock ? Colors.red : Colors.green,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w900,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '$totalQuantity units',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            ),
+                          ],
+                        ),
+                        onTap: () {},
+                      ),
+                    );
                   },
-                ),
-              );
-            },
-          );
-        },
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (err, stack) => Center(child: Text('Error: $err')),
+                );
+              },
+              loading: () => const Center(child: CircularProgressIndicator()),
+              error: (err, stack) => Center(child: Text('Error: $err')),
+            ),
+          ),
+        ],
       ),
     );
   }

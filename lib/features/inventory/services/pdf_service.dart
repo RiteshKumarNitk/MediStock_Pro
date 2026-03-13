@@ -32,16 +32,15 @@ class PDFService {
               pw.Text('GSTIN: ${invoice.gstin ?? 'N/A'}'),
               pw.SizedBox(height: 20),
               pw.TableHelper.fromTextArray(
-
                 context: context,
                 data: <List<String>>[
                   <String>['Product', 'Batch', 'Qty', 'Rate', 'Value'],
                   ...items.map((item) => [
-                    item.productName,
+                    item.productName ?? 'Unknown',
                     item.batchNo ?? '',
-                    item.qty.toString(),
-                    item.rate.toStringAsFixed(2),
-                    item.taxableValue.toStringAsFixed(2),
+                    (item.qty ?? 0).toString(),
+                    (item.rate ?? 0.0).toStringAsFixed(2),
+                    (item.taxableValue ?? 0.0).toStringAsFixed(2),
                   ]),
                 ],
               ),
@@ -52,8 +51,8 @@ class PDFService {
                   pw.Column(
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
-                      pw.Text('Tax Amount: ₹${invoice.taxAmount.toStringAsFixed(2)}'),
-                      pw.Text('Total Amount: ₹${invoice.totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
+                      pw.Text('Tax Amount: ₹${(invoice.taxAmount ?? 0.0).toStringAsFixed(2)}'),
+                      pw.Text('Total Amount: ₹${(invoice.totalAmount ?? 0.0).toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 18)),
                     ],
                   ),
                 ],
@@ -106,14 +105,13 @@ class PDFService {
                     crossAxisAlignment: pw.CrossAxisAlignment.end,
                     children: [
                       pw.Text('Invoice #: ${invoice.invoiceNumber}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                      pw.Text('Payment Mode: ${invoice.paymentMode.toUpperCase()}'),
+                      pw.Text('Payment Mode: ${(invoice.paymentMode ?? 'cash').toUpperCase()}'),
                     ],
                   ),
                 ],
               ),
               pw.SizedBox(height: 20),
               pw.TableHelper.fromTextArray(
-
                 context: context,
                 headerStyle: pw.TextStyle(fontWeight: pw.FontWeight.bold),
                 headerDecoration: const pw.BoxDecoration(color: PdfColors.grey300),
@@ -122,15 +120,20 @@ class PDFService {
                   ...items.asMap().entries.map((entry) {
                     final idx = entry.key + 1;
                     final item = entry.value;
+                    final rate = (item['unit_price'] ?? 0.0) as double;
+                    final cgst = (item['cgst'] ?? 0.0) as double;
+                    final sgst = (item['sgst'] ?? 0.0) as double;
+                    final taxable = (item['taxable_value'] ?? 0.0) as double;
+                    
                     return [
                       idx.toString(),
-                      item['product_name'] ?? 'N/A',
-                      item['batch_no'] ?? 'N/A',
-                      item['qty'].toString(),
-                      item['unit_price'].toStringAsFixed(2),
-                      item['cgst'].toStringAsFixed(2),
-                      item['sgst'].toStringAsFixed(2),
-                      (item['taxable_value'] + item['cgst'] + item['sgst']).toStringAsFixed(2),
+                      item['product_name']?.toString() ?? 'N/A',
+                      item['batch_no']?.toString() ?? 'N/A',
+                      (item['qty'] ?? 0).toString(),
+                      rate.toStringAsFixed(2),
+                      cgst.toStringAsFixed(2),
+                      sgst.toStringAsFixed(2),
+                      (taxable + cgst + sgst).toStringAsFixed(2),
                     ];
                   }),
                 ],
@@ -147,7 +150,7 @@ class PDFService {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Tax Amount:'),
-                            pw.Text('₹${invoice.taxAmount.toStringAsFixed(2)}'),
+                            pw.Text('₹${(invoice.taxAmount ?? 0.0).toStringAsFixed(2)}'),
                           ],
                         ),
                         pw.Divider(),
@@ -155,7 +158,7 @@ class PDFService {
                           mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                           children: [
                             pw.Text('Total Payable:', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16)),
-                            pw.Text('₹${invoice.totalAmount.toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16, color: PdfColors.blue900)),
+                            pw.Text('₹${(invoice.totalAmount ?? 0.0).toStringAsFixed(2)}', style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 16, color: PdfColors.blue900)),
                           ],
                         ),
                       ],

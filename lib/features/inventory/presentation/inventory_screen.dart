@@ -128,12 +128,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                           child: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
                         ),
                         title: Text(
-                          product['name'],
+                          product['name']?.toString() ?? 'Unknown Medication',
                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                         ),
                         subtitle: Padding(
                           padding: const EdgeInsets.only(top: 4),
-                          child: Text('Barcode: ${product['barcode']}', style: const TextStyle(fontSize: 12)),
+                          child: Text('Barcode: ${product['barcode'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
                         ),
                         trailing: Column(
                           mainAxisAlignment: MainAxisAlignment.center,

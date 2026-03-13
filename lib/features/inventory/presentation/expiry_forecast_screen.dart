@@ -12,9 +12,11 @@ final expiryForecastProvider = FutureProvider<List<Map<String, dynamic>>>((ref) 
   final List data = jsonDecode(response.body);
   return data.map((item) {
     final map = Map<String, dynamic>.from(item as Map);
+    // Robust access to nested product name
+    final productName = map['product']?['name'] ?? 'Unknown Item';
     return {
       ...map,
-      'medi_products': {'name': map['product']['name']}
+      'medi_products': {'name': productName}
     };
   }).toList().cast<Map<String, dynamic>>();
 });
@@ -57,7 +59,15 @@ class ExpiryForecastScreen extends ConsumerWidget {
             itemCount: batches.length,
             itemBuilder: (context, index) {
               final batch = batches[index];
-              final expiry = DateTime.parse(batch['expiry_date']);
+              final expiryStr = batch['expiry_date']?.toString();
+              
+              DateTime expiry;
+              try {
+                expiry = expiryStr != null ? DateTime.parse(expiryStr) : DateTime.now().add(const Duration(days: 365));
+              } catch (e) {
+                expiry = DateTime.now().add(const Duration(days: 365));
+              }
+
               final daysLeft = expiry.difference(DateTime.now()).inDays;
               
               Color statusColor = Colors.green;
@@ -91,15 +101,15 @@ class ExpiryForecastScreen extends ConsumerWidget {
                       const SizedBox(width: 20),
                       Expanded(
                         child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              batch['medi_products']['name'],
+                              batch['medi_products']?['name'] ?? 'Unknown Item',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                             const SizedBox(height: 4),
                             Text(
-                              'Batch: ${batch['batch_no']} • Qty: ${batch['quantity']}',
+                              'Batch: ${batch['batch_no'] ?? 'N/A'} • Qty: ${batch['quantity'] ?? 0}',
                               style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
                             ),
                           ],

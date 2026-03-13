@@ -26,9 +26,9 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
 
-  double get _taxableTotal => _cart.fold(0, (sum, item) => sum + (item['taxable_value'] as double));
-  double get _cgstTotal => _cart.fold(0, (sum, item) => sum + (item['cgst'] as double));
-  double get _sgstTotal => _cart.fold(0, (sum, item) => sum + (item['sgst'] as double));
+  double get _taxableTotal => _cart.fold(0, (sum, item) => sum + ((item['taxable_value'] ?? 0.0) as double));
+  double get _cgstTotal => _cart.fold(0, (sum, item) => sum + ((item['cgst'] ?? 0.0) as double));
+  double get _sgstTotal => _cart.fold(0, (sum, item) => sum + ((item['sgst'] ?? 0.0) as double));
   double get _totalAmount => _taxableTotal + _cgstTotal + _sgstTotal;
 
   Future<void> _searchBatches(String query) async {
@@ -50,7 +50,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
           return {
             ...map,
             'medi_products': {
-              'name': map['product']?['name'] ?? 'Unknown',
+              'name': map['product']?['name'] ?? 'Unknown Item',
               'gst_percent': map['product']?['gstPercent'] ?? 0,
             }
           };
@@ -64,20 +64,21 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   }
 
   void _addToCart(Map<String, dynamic> batch) {
-    final product = batch['medi_products'];
-    final gst = (product['gst_percent'] as num).toDouble();
+    final product = batch['medi_products'] ?? {'name': 'Unknown', 'gst_percent': 0};
+    final gst = (product['gst_percent'] as num?)?.toDouble() ?? 0.0;
+    final price = (batch['selling_price'] ?? batch['mrp'] ?? 0.0) as double;
     
     setState(() {
       _cart.add({
         'batch_id': batch['id'],
-        'product_name': product['name'],
-        'batch_no': batch['batch_no'],
+        'product_name': product['name'] ?? 'Unknown Item',
+        'batch_no': batch['batch_no'] ?? 'N/A',
         'qty': 1,
-        'unit_price': (batch['selling_price'] ?? batch['mrp'] ?? 0.0) as double,
-        'taxable_value': (batch['selling_price'] ?? batch['mrp'] ?? 0.0) as double,
-        'cgst': ((batch['selling_price'] ?? batch['mrp'] ?? 0.0) * (gst / 200)),
-        'sgst': ((batch['selling_price'] ?? batch['mrp'] ?? 0.0) * (gst / 200)),
-        'max_qty': batch['quantity'],
+        'unit_price': price,
+        'taxable_value': price,
+        'cgst': (price * (gst / 200)),
+        'sgst': (price * (gst / 200)),
+        'max_qty': batch['quantity'] ?? 1,
       });
       _searchResults = [];
       _searchController.clear();
@@ -89,7 +90,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
 
     try {
       final saleInvoice = await ref.read(salesRepositoryProvider).createSale(
-        customerName: _customerNameController.text,
+        customerName: _customerNameController.text.isEmpty ? 'Walk-in Customer' : _customerNameController.text,
         customerPhone: _customerPhoneController.text,
         paymentMode: 'cash',
         items: _cart,
@@ -108,7 +109,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                 Text('Sale Complete'),
               ],
             ),
-            content: Text('Invoice #${saleInvoice.invoiceNumber} has been generated successfully.'),
+            content: Text('Invoice #${saleInvoice.invoiceNumber ?? 'N/A'} has been generated successfully.'),
             actions: [
               TextButton(
                 onPressed: () => context.go('/dashboard'),
@@ -132,9 +133,11 @@ class _POSScreenState extends ConsumerState<POSScreen> {
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Checkout Error: $e'), backgroundColor: AppTheme.errorColor),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Checkout Error: $e'), backgroundColor: AppTheme.errorColor),
+        );
+      }
     }
   }
 
@@ -218,8 +221,8 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                       ),
                       child: ListTile(
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        title: Text(item['product_name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('Batch: ${item['batch_no']} | ₹${item['unit_price']}/unit'),
+                        title: Text(item['product_name'] ?? 'Unknown Item', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        subtitle: Text('Batch: ${item['batch_no'] ?? 'N/A'} | ₹${item['unit_price']}/unit'),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
@@ -241,7 +244,7 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                             IconButton(
                               icon: const Icon(Icons.add_circle_outline, color: AppTheme.primaryColor),
                               onPressed: () => setState(() {
-                                if (item['qty'] < item['max_qty']) {
+                                if (item['qty'] < (item['max_qty'] ?? 1)) {
                                   item['qty']++;
                                 }
                               }),
@@ -276,9 +279,9 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                               final res = _searchResults[index];
                               return ListTile(
                                 leading: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
-                                title: Text(res['medi_products']['name'], style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Batch: ${res['batch_no']} | Stock: ${res['quantity']}'),
-                                trailing: Text('₹${res['selling_price'] ?? res['mrp']}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+                                title: Text(res['medi_products']?['name']?.toString() ?? 'Unknown Item', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                subtitle: Text('Batch: ${res['batch_no'] ?? 'N/A'} | Stock: ${res['quantity'] ?? 0}'),
+                                trailing: Text('₹${res['selling_price'] ?? res['mrp'] ?? 0.0}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
                                 onTap: () => _addToCart(res),
                               );
                             },

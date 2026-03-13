@@ -8,7 +8,17 @@ class InventoryRepository {
     if (response.statusCode != 200) return [];
 
     final List data = jsonDecode(response.body);
-    return data.map((item) => Product.fromJson(item)).toList();
+    return data.map((item) {
+      return Product(
+        id: (item['id'] ?? '').toString(),
+        tenantId: (item['tenantId'] ?? '').toString(),
+        name: (item['name'] ?? 'Unknown').toString(),
+        barcode: item['barcode']?.toString(),
+        hsnCode: item['hsnCode']?.toString(),
+        category: item['category']?.toString(),
+        gstPercent: (item['gstPercent'] ?? 12.0) is num ? (item['gstPercent'] as num).toDouble() : 12.0,
+      );
+    }).toList();
   }
 
   Future<List<Map<String, dynamic>>> getInventoryWithTotalQty() async {
@@ -16,7 +26,7 @@ class InventoryRepository {
     if (response.statusCode != 200) return [];
 
     final List data = jsonDecode(response.body);
-    return data.cast<Map<String, dynamic>>();
+    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
   }
 
   Future<void> savePurchaseInvoice(Map<String, dynamic> data) async {

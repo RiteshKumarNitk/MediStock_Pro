@@ -19,12 +19,12 @@ class Profile {
 
   factory Profile.fromJson(Map<String, dynamic> json) {
     return Profile(
-      id: json['id'] as String,
-      tenantId: json['tenantId'] as String,
-      role: json['role'] as String,
+      id: (json['id'] ?? '').toString(),
+      tenantId: (json['tenantId'] ?? '').toString(),
+      role: (json['role'] ?? 'user').toString(),
       name: json['name'] as String?,
       email: json['email'] as String?,
-      createdAt: json['createdAt'] != null ? DateTime.parse(json['createdAt'] as String) : null,
+      createdAt: json['createdAt'] != null ? DateTime.tryParse(json['createdAt'].toString()) : null,
     );
   }
 

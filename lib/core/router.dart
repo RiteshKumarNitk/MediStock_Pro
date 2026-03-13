@@ -13,6 +13,9 @@ import 'package:medistock_pro/features/inventory/presentation/pos_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/expiry_forecast_screen.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
 
+import 'package:flutter/material.dart';
+import 'package:medistock_pro/core/main_navigation_shell.dart';
+
 final authService = AuthService();
 
 final router = GoRouter(
@@ -41,52 +44,72 @@ final router = GoRouter(
       path: '/register',
       builder: (context, state) => const RegisterScreen(),
     ),
-    GoRoute(
-      path: '/dashboard',
-      builder: (context, state) => const DashboardScreen(),
-    ),
-    GoRoute(
-      path: '/inventory',
-      builder: (context, state) => const InventoryScreen(),
-      routes: [
-        GoRoute(
-          path: 'add',
-          builder: (context, state) => const AddProductScreen(),
+    StatefulShellRoute.indexedStack(
+      builder: (context, state, navigationShell) {
+        return MainNavigationShell(navigationShell: navigationShell);
+      },
+      branches: [
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/dashboard',
+              builder: (context, state) => const DashboardScreen(),
+            ),
+          ],
         ),
-        GoRoute(
-          path: 'scan',
-          builder: (context, state) => const ScannerScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/inventory',
+              builder: (context, state) => const InventoryScreen(),
+              routes: [
+                GoRoute(
+                  path: 'add',
+                  builder: (context, state) => const AddProductScreen(),
+                ),
+                GoRoute(
+                  path: 'scan',
+                  builder: (context, state) => const ScannerScreen(),
+                ),
+                GoRoute(
+                  path: 'invoice-scan',
+                  builder: (context, state) => const ScanInvoiceScreen(),
+                ),
+                GoRoute(
+                  path: 'returns',
+                  builder: (context, state) => const ReturnsManagementScreen(),
+                ),
+                GoRoute(
+                  path: 'invoices',
+                  builder: (context, state) => const InvoicesScreen(),
+                ),
+              ],
+            ),
+          ],
         ),
-        GoRoute(
-          path: 'invoice-scan',
-          builder: (context, state) => const ScanInvoiceScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/pos',
+              builder: (context, state) => const POSScreen(),
+            ),
+          ],
         ),
-        GoRoute(
-          path: 'returns',
-          builder: (context, state) => const ReturnsManagementScreen(),
-        ),
-        GoRoute(
-          path: 'invoices',
-          builder: (context, state) => const InvoicesScreen(),
-        ),
-        GoRoute(
-          path: 'pos',
-          builder: (context, state) => const POSScreen(),
-        ),
-        GoRoute(
-          path: 'reports',
-          builder: (context, state) => const ReportsScreen(),
-        ),
-        GoRoute(
-          path: 'expiry-forecast',
-          builder: (context, state) => const ExpiryForecastScreen(),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/reports',
+              builder: (context, state) => const ReportsScreen(),
+              routes: [
+                GoRoute(
+                  path: 'expiry-forecast',
+                  builder: (context, state) => const ExpiryForecastScreen(),
+                ),
+              ],
+            ),
+          ],
         ),
       ],
     ),
-
-
-
-
   ],
 );
-

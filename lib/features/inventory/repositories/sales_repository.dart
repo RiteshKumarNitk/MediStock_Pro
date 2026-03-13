@@ -32,7 +32,17 @@ class SalesRepository {
     }
 
     final data = jsonDecode(response.body);
-    return SalesInvoice.fromJson(data);
+    return SalesInvoice(
+      id: (data['id'] ?? '').toString(),
+      tenantId: (data['tenantId'] ?? '').toString(),
+      invoiceNumber: (data['invoiceNumber'] ?? 'SALE-ERR').toString(),
+      customerName: data['customerName']?.toString(),
+      customerPhone: data['customerPhone']?.toString(),
+      totalAmount: (data['totalAmount'] ?? 0.0) is num ? (data['totalAmount'] as num).toDouble() : 0.0,
+      taxAmount: (data['taxAmount'] ?? 0.0) is num ? (data['taxAmount'] as num).toDouble() : 0.0,
+      paymentMode: (data['paymentMode'] ?? 'cash').toString(),
+      createdAt: data['createdAt'] != null ? DateTime.tryParse(data['createdAt'].toString()) : null,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getSalesHistory() async {

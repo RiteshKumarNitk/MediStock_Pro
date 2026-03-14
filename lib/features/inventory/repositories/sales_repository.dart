@@ -31,7 +31,11 @@ class SalesRepository {
       throw Exception('Failed to create sale: ${response.body}');
     }
 
-    final data = jsonDecode(response.body);
+    final decoded = jsonDecode(response.body);
+    if (decoded['success'] != true) {
+      throw Exception('Server returned false success');
+    }
+    final data = decoded['data'];
     return SalesInvoice(
       id: (data['id'] ?? '').toString(),
       tenantId: (data['tenantId'] ?? '').toString(),

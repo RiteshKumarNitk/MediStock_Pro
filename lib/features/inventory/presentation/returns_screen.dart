@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medistock_pro/core/api_client.dart';
 import 'package:medistock_pro/core/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 
 class ReturnsManagementScreen extends ConsumerWidget {
   const ReturnsManagementScreen({super.key});
@@ -12,7 +13,9 @@ class ReturnsManagementScreen extends ConsumerWidget {
     final response = await ApiClient.get('/reports?type=returns');
     if (response.statusCode != 200) return [];
 
-    final List data = jsonDecode(response.body);
+    final Map<String, dynamic> decoded = jsonDecode(response.body);
+    if (decoded['success'] != true) return [];
+    final List data = decoded['data'] ?? [];
     return data.cast<Map<String, dynamic>>();
   }
 
@@ -27,7 +30,27 @@ class ReturnsManagementScreen extends ConsumerWidget {
         future: _fetchReturns(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return ListView.builder(
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+              itemCount: 4,
+              itemBuilder: (context, index) {
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  height: 140,
+                  child: Shimmer.fromColors(
+                    baseColor: Colors.grey.shade200,
+                    highlightColor: Colors.white,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(color: Colors.grey.shade100, width: 1.5),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
           }
           if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}', style: const TextStyle(color: AppTheme.errorColor)));

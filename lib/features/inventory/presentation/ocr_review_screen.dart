@@ -144,6 +144,59 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
                         children: [
                           Expanded(
                             child: TextFormField(
+                              initialValue: item['barcode']?.toString() ?? '',
+                              onChanged: (v) => _items[index]['barcode'] = v,
+                              decoration: const InputDecoration(
+                                labelText: 'Barcode/ID',
+                                prefixIcon: Icon(Icons.qr_code_scanner_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item['category']?.toString() ?? 'General',
+                              onChanged: (v) => _items[index]['category'] = v,
+                              decoration: const InputDecoration(
+                                labelText: 'Category',
+                                prefixIcon: Icon(Icons.category_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item['hsn_code']?.toString() ?? '',
+                              onChanged: (v) => _items[index]['hsn_code'] = v,
+                              decoration: const InputDecoration(
+                                labelText: 'HSN Code',
+                                prefixIcon: Icon(Icons.tag_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item['gst_percent']?.toString() ?? '12',
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) => _items[index]['gst_percent'] = double.tryParse(v) ?? 12.0,
+                              decoration: const InputDecoration(
+                                labelText: 'GST %',
+                                prefixIcon: Icon(Icons.percent_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
                               initialValue: item['batch_no']?.toString() ?? '',
                               onChanged: (v) => _items[index]['batch_no'] = v,
                               decoration: const InputDecoration(
@@ -182,12 +235,44 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: TextFormField(
-                              initialValue: item['rate']?.toString() ?? '0.0',
+                              initialValue: (item['purchase_price'] ?? item['rate'])?.toString() ?? '0.0',
                               keyboardType: TextInputType.number,
-                              onChanged: (v) => _items[index]['rate'] = double.tryParse(v) ?? 0.0,
+                              onChanged: (v) {
+                                final val = double.tryParse(v) ?? 0.0;
+                                _items[index]['purchase_price'] = val;
+                                _items[index]['rate'] = val;
+                              },
                               decoration: const InputDecoration(
-                                labelText: 'Rate (₹)',
-                                prefixIcon: Icon(Icons.payments_rounded, size: 18),
+                                labelText: 'Pur. Price (₹)',
+                                prefixIcon: Icon(Icons.shopping_cart_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item['mrp']?.toString() ?? '0.0',
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) => _items[index]['mrp'] = double.tryParse(v) ?? 0.0,
+                              decoration: const InputDecoration(
+                                labelText: 'MRP (₹)',
+                                prefixIcon: Icon(Icons.money_rounded, size: 18),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: TextFormField(
+                              initialValue: item['selling_price']?.toString() ?? '0.0',
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) => _items[index]['selling_price'] = double.tryParse(v) ?? 0.0,
+                              decoration: const InputDecoration(
+                                labelText: 'Sell Price (₹)',
+                                prefixIcon: Icon(Icons.sell_rounded, size: 18),
                               ),
                             ),
                           ),

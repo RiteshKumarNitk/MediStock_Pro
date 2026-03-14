@@ -347,7 +347,8 @@ class DashboardScreen extends ConsumerWidget {
                   _buildNavTile(context, 'Dashboard', Icons.grid_view_rounded, '/dashboard', isSelected: true),
                   _buildNavTile(context, 'Inventory Master', Icons.inventory_2_rounded, '/inventory'),
                   _buildNavTile(context, 'Critical Alerts', Icons.notification_important_rounded, '/inventory/expiry-alerts'),
-                  _buildNavTile(context, 'Sales History', Icons.receipt_long_rounded, '/inventory/reports'),
+                  _buildNavTile(context, 'Transactions History', Icons.receipt_long_rounded, '/inventory/ledger'),
+                  _buildNavTile(context, 'Store Profile', Icons.business_rounded, '/profile'),
                 ],
               ),
             ),
@@ -443,15 +444,13 @@ class DashboardScreen extends ConsumerWidget {
                       ),
                       const SizedBox(height: 4),
                       Text(
-                        'Stock: ${item['total_qty']} units',
+                        'Stock: ${item['total_quantity']} units',
                         style: TextStyle(color: Colors.orange.shade900, fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
                       ElevatedButton(
                         onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Reorder request sent to supplier!')),
-                          );
+                          context.go('/inventory/invoice-scan');
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.orange.shade700,

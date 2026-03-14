@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
-import 'package:medistock_pro/features/inventory/providers/inventory_providers.dart';
+import 'package:medistock_pro/features/inventory/providers/inventory_list_provider.dart';
 import 'package:medistock_pro/features/inventory/repositories/inventory_repository.dart';
+import 'package:intl/intl.dart';
 import 'package:medistock_pro/core/app_theme.dart';
-
-final inventoryListProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  return ref.watch(inventoryRepositoryProvider).getInventoryWithTotalQty();
-});
+import 'package:shimmer/shimmer.dart';
 
 class InventoryScreen extends ConsumerStatefulWidget {
   const InventoryScreen({super.key});
@@ -19,18 +17,30 @@ class InventoryScreen extends ConsumerStatefulWidget {
 
 class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchController = TextEditingController();
-  final _authService = AuthService();
-  String _searchQuery = '';
+  final _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController.addListener(_onScroll);
+  }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 200) {
+      ref.read(inventoryListControllerProvider.notifier).fetchNextPage();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final inventoryAsync = ref.watch(inventoryListProvider);
+    final state = ref.watch(inventoryListControllerProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -64,10 +74,10 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               ),
               child: TextField(
                 controller: _searchController,
-                onChanged: (value) => setState(() => _searchQuery = value.toLowerCase()),
-                decoration: InputDecoration(
+                onChanged: (value) => ref.read(inventoryListControllerProvider.notifier).updateSearch(value),
+                decoration: const InputDecoration(
                   hintText: 'Search medications...',
-                  prefixIcon: const Icon(Icons.search_rounded, color: AppTheme.primaryColor),
+                  prefixIcon: Icon(Icons.search_rounded, color: AppTheme.primaryColor),
                   border: InputBorder.none,
                   enabledBorder: InputBorder.none,
                   focusedBorder: InputBorder.none,
@@ -77,100 +87,347 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ),
           ),
           Expanded(
-            child: inventoryAsync.when(
-              data: (products) {
-                final filteredProducts = products.where((p) {
-                  final name = p['name'].toString().toLowerCase();
-                  final barcode = p['barcode'].toString().toLowerCase();
-                  return name.contains(_searchQuery) || barcode.contains(_searchQuery);
-                }).toList();
+            child: state.isLoading 
+              ? _buildLoadingShimmer()
+              : state.items.isEmpty
+                ? _buildEmptyState(state.searchQuery)
+                : RefreshIndicator(
+                    onRefresh: () async => ref.read(inventoryListControllerProvider.notifier).refresh(),
+                    child: ListView.builder(
+                      controller: _scrollController,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: state.items.length + (state.isLoadingMore ? 1 : 0),
+                      itemBuilder: (context, index) {
+                        if (index == state.items.length) {
+                          return const Padding(
+                            padding: EdgeInsets.symmetric(vertical: 32),
+                            child: Center(child: CircularProgressIndicator()),
+                          );
+                        }
 
-                if (filteredProducts.isEmpty) {
-                  return Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
-                        const SizedBox(height: 24),
-                        Text(
-                          _searchQuery.isEmpty ? 'Inventory is empty' : 'No matches found',
-                          style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
-                        ),
-                      ],
-                    ),
-                  );
-                }
+                        final product = state.items[index];
+                        final totalQuantity = product['total_quantity'] ?? 0;
+                        final bool isLowStock = totalQuantity < 10;
 
-                return ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: filteredProducts.length,
-                  itemBuilder: (context, index) {
-                    final product = filteredProducts[index];
-                    final totalQuantity = product['total_quantity'] ?? 0;
-                    final bool isLowStock = totalQuantity < 10;
-
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.grey.shade100),
-                      ),
-                      child: ListTile(
-                        contentPadding: const EdgeInsets.all(16),
-                        leading: Container(
-                          width: 56,
-                          height: 56,
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 8),
                           decoration: BoxDecoration(
-                            color: AppTheme.primaryColor.withOpacity(0.05),
+                            color: Colors.white,
                             borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.grey.shade100),
                           ),
-                          child: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
-                        ),
-                        title: Text(
-                          product['name']?.toString() ?? 'Unknown Medication',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                        ),
-                        subtitle: Padding(
-                          padding: const EdgeInsets.only(top: 4),
-                          child: Text('Barcode: ${product['barcode'] ?? 'N/A'}', style: const TextStyle(fontSize: 12)),
-                        ),
-                        trailing: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                          child: ListTile(
+                            dense: true,
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            leading: Container(
+                              width: 40,
+                              height: 40,
                               decoration: BoxDecoration(
-                                color: isLowStock ? Colors.red.shade50 : Colors.green.shade50,
-                                borderRadius: BorderRadius.circular(10),
+                                color: AppTheme.primaryColor.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(12),
                               ),
-                              child: Text(
-                                isLowStock ? 'LOW STOCK' : 'IN STOCK',
-                                style: TextStyle(
-                                  color: isLowStock ? Colors.red : Colors.green,
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.w900,
+                              child: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor, size: 20),
+                            ),
+                            title: Row(
+                              children: [
+                                Expanded(
+                                  child: Text(
+                                    product['name']?.toString() ?? 'Unknown Medication',
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isLowStock ? Colors.red.shade50 : Colors.green.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    isLowStock ? 'LOW' : 'OK',
+                                    style: TextStyle(
+                                      color: isLowStock ? Colors.red : Colors.green,
+                                      fontSize: 8,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
-                            const SizedBox(height: 8),
-                            Text(
-                              '$totalQuantity units',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            subtitle: Text(
+                              'Barcode: ${product['barcode'] ?? 'N/A'} • ${product['category'] ?? 'General'}',
+                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
                             ),
-                          ],
-                        ),
-                        onTap: () {},
-                      ),
-                    );
-                  },
-                );
-              },
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, stack) => Center(child: Text('Error: $err')),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  product['displayPrice']?.toString() ?? '₹0',
+                                  style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 14, color: AppTheme.primaryColor),
+                                ),
+                                Text(
+                                  '$totalQuantity units',
+                                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 11, color: Colors.grey.shade500),
+                                ),
+                              ],
+                            ),
+                            onTap: () => _showProductDetails(context, product),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLoadingShimmer() {
+    return ListView.builder(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      itemCount: 6,
+      itemBuilder: (context, index) => Padding(
+        padding: const EdgeInsets.only(bottom: 16),
+        child: Shimmer.fromColors(
+          baseColor: Colors.grey.shade200,
+          highlightColor: Colors.white,
+          child: Container(
+            height: 90,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String query) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey.shade300),
+          const SizedBox(height: 24),
+          Text(
+            query.isEmpty ? 'Inventory is empty' : 'No matches found',
+            style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.bold),
+          ),
+        ],
+      ),
+    );
+  }
+  void _showProductDetails(BuildContext context, Map<String, dynamic> product) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        final batches = (product['batches'] as List?) ?? [];
+        final totalQuantity = product['total_quantity'] ?? 0;
+
+        return Container(
+          height: MediaQuery.of(context).size.height * 0.85,
+          decoration: const BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Header Handle
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12, bottom: 20),
+                  width: 40,
+                  height: 5,
+                  decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(10)),
+                ),
+              ),
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Product Info
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: AppTheme.primaryColor.withOpacity(0.05),
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor, size: 36),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  product['name']?.toString() ?? 'Unknown',
+                                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                                ),
+                                const SizedBox(height: 4),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: Colors.blue.shade50,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: Text(
+                                    '${totalQuantity} In Stock',
+                                    style: TextStyle(color: Colors.blue.shade700, fontWeight: FontWeight.bold, fontSize: 13),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 30),
+                      
+                      const Text('Product Details', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 16),
+                      _buildDetailRow('Barcode', product['barcode']?.toString() ?? 'N/A'),
+                      _buildDetailRow('Category', product['category']?.toString() ?? 'General'),
+                      _buildDetailRow('HSN Code', product['hsnCode']?.toString() ?? 'N/A'),
+                      _buildDetailRow('GST Percent', '${product['gstPercent'] ?? 12}%'),
+                      
+                      const SizedBox(height: 30),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text('Available Batches', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                          Text('${batches.length} Batches', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      
+                      if (batches.isEmpty)
+                        Container(
+                          padding: const EdgeInsets.all(30),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(color: Colors.grey.shade50, borderRadius: BorderRadius.circular(16)),
+                          child: const Text('No batches in stock', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                        )
+                      else
+                        ...batches.map((b) {
+                          final expiryStr = b['expiryDate']?.toString();
+                          DateTime? expiry;
+                          if (expiryStr != null) {
+                            try { expiry = DateTime.parse(expiryStr); } catch (_) {}
+                          }
+                          
+                          return Container(
+                            margin: const EdgeInsets.only(bottom: 12),
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.grey.shade200),
+                            ),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text('Batch: ${b['batchNo'] ?? 'N/A'}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      'Exp: ${expiry != null ? DateFormat('MMM yyyy').format(expiry) : 'N/A'}',
+                                      style: TextStyle(color: Colors.red.shade400, fontSize: 13, fontWeight: FontWeight.bold),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text('${b['quantity'] ?? 0} units', style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 16)),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '₹${b['sellingPrice'] ?? '0.0'}',
+                                      style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                          );
+                        }),
+                        
+                      const SizedBox(height: 40),
+                    ],
+                  ),
+                ),
+              ),
+              // Action Buttons
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, -5))],
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          // Quick Restock via 'Add Stock'
+                          context.pop(); 
+                          context.push('/inventory/add?barcode=${product['barcode'] ?? ''}');
+                        },
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: const BorderSide(color: AppTheme.primaryColor, width: 2),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: const Text('Add Stock', style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: () {
+                          // Close bottom sheet and launch edit profile screen
+                          context.pop();
+                          context.push('/inventory/edit', extra: product);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          backgroundColor: AppTheme.primaryColor,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        ),
+                        child: const Text('Edit Info', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: TextStyle(color: Colors.grey.shade600, fontSize: 15)),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
         ],
       ),
     );

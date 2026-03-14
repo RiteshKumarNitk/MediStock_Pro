@@ -10,7 +10,9 @@ class InventoryProvider extends StateNotifier<bool> {
     final response = await ApiClient.get('/products?barcode=$barcode');
     if (response.statusCode != 200) return null;
     
-    final List data = jsonDecode(response.body);
+    final Map<String, dynamic> decoded = jsonDecode(response.body);
+    if (decoded['success'] != true) return null;
+    final List data = decoded['data'] ?? [];
     if (data.isEmpty) return null;
     return data[0] as Map<String, dynamic>;
   }
@@ -41,8 +43,11 @@ class InventoryProvider extends StateNotifier<bool> {
          // For now, let's proceed to fetch the ID or use a more robust backend service.
       }
       
-      final productData = jsonDecode(productResponse.body);
-      final productId = productData['id'];
+      final decodedProduct = jsonDecode(productResponse.body);
+      if (decodedProduct['success'] != true) {
+        throw Exception('Failed to create product');
+      }
+      final productId = decodedProduct['data']['id'];
 
       // 2. Add Batch
       final batchResponse = await ApiClient.post('/batches', {

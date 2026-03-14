@@ -5,10 +5,12 @@ import 'package:medistock_pro/features/dashboard/presentation/dashboard_screen.d
 import 'package:medistock_pro/features/dashboard/presentation/reports_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/inventory_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/add_product_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/edit_product_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/scanner_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/scan_invoice_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/returns_screen.dart';
-import 'package:medistock_pro/features/inventory/presentation/invoices_screen.dart';
+import 'package:medistock_pro/features/inventory/presentation/transactions_screen.dart';
+import 'package:medistock_pro/features/auth/presentation/profile_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/pos_screen.dart';
 import 'package:medistock_pro/features/inventory/presentation/expiry_forecast_screen.dart';
 import 'package:medistock_pro/features/auth/services/auth_service.dart';
@@ -68,6 +70,14 @@ final router = GoRouter(
                   builder: (context, state) => const AddProductScreen(),
                 ),
                 GoRoute(
+                  path: 'edit',
+                  builder: (context, state) {
+                    final product = state.extra as Map<String, dynamic>?;
+                    if (product == null) return const InventoryScreen();
+                    return EditProductScreen(product: product);
+                  },
+                ),
+                GoRoute(
                   path: 'scan',
                   builder: (context, state) => const ScannerScreen(),
                 ),
@@ -80,10 +90,18 @@ final router = GoRouter(
                   builder: (context, state) => const ReturnsManagementScreen(),
                 ),
                 GoRoute(
-                  path: 'invoices',
-                  builder: (context, state) => const InvoicesScreen(),
+                  path: 'ledger',
+                  builder: (context, state) => const TransactionsScreen(),
                 ),
               ],
+            ),
+          ],
+        ),
+        StatefulShellBranch(
+          routes: [
+            GoRoute(
+              path: '/profile',
+              builder: (context, state) => const ProfileScreen(),
             ),
           ],
         ),

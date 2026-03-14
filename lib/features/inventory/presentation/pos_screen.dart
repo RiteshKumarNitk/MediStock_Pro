@@ -26,9 +26,9 @@ class _POSScreenState extends ConsumerState<POSScreen> {
   List<Map<String, dynamic>> _searchResults = [];
   bool _isSearching = false;
 
-  double get _taxableTotal => _cart.fold(0, (sum, item) => sum + ((item['taxable_value'] ?? 0.0) as double));
-  double get _cgstTotal => _cart.fold(0, (sum, item) => sum + ((item['cgst'] ?? 0.0) as double));
-  double get _sgstTotal => _cart.fold(0, (sum, item) => sum + ((item['sgst'] ?? 0.0) as double));
+  double get _taxableTotal => _cart.fold(0, (sum, item) => sum + (((item['unit_price'] ?? 0.0) as double) * (item['qty'] as int)));
+  double get _cgstTotal => _cart.fold(0, (sum, item) => sum + (((item['cgst'] ?? 0.0) as double) * (item['qty'] as int)));
+  double get _sgstTotal => _cart.fold(0, (sum, item) => sum + (((item['sgst'] ?? 0.0) as double) * (item['qty'] as int)));
   double get _totalAmount => _taxableTotal + _cgstTotal + _sgstTotal;
 
   Future<void> _searchBatches(String query) async {
@@ -42,7 +42,9 @@ class _POSScreenState extends ConsumerState<POSScreen> {
       final response = await ApiClient.get('/batches?query=$query&inStock=true');
       if (response.statusCode != 200) return;
 
-      final List data = jsonDecode(response.body);
+      final Map<String, dynamic> decoded = jsonDecode(response.body);
+      if (decoded['success'] != true) return;
+      final List data = decoded['data'] ?? [];
       
       setState(() {
         _searchResults = data.map((item) {
@@ -93,7 +95,19 @@ class _POSScreenState extends ConsumerState<POSScreen> {
         customerName: _customerNameController.text.isEmpty ? 'Walk-in Customer' : _customerNameController.text,
         customerPhone: _customerPhoneController.text,
         paymentMode: 'cash',
-        items: _cart,
+        items: _cart.map((item) {
+          final qty = item['qty'] as int;
+          final unitPrice = item['unit_price'] as double;
+          final cgstPerUnit = (item['cgst'] ?? 0.0) as double;
+          final sgstPerUnit = (item['sgst'] ?? 0.0) as double;
+          
+          return {
+            ...item,
+            'taxable_value': unitPrice * qty,
+            'cgst': cgstPerUnit * qty,
+            'sgst': sgstPerUnit * qty,
+          };
+        }).toList(),
       );
 
       if (mounted) {
@@ -278,10 +292,27 @@ class _POSScreenState extends ConsumerState<POSScreen> {
                             itemBuilder: (context, index) {
                               final res = _searchResults[index];
                               return ListTile(
-                                leading: const Icon(Icons.medication_rounded, color: AppTheme.primaryColor),
-                                title: Text(res['medi_products']?['name']?.toString() ?? 'Unknown Item', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                subtitle: Text('Batch: ${res['batch_no'] ?? 'N/A'} | Stock: ${res['quantity'] ?? 0}'),
-                                trailing: Text('₹${res['selling_price'] ?? res['mrp'] ?? 0.0}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor)),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                leading: Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: AppTheme.primaryColor.withOpacity(0.05),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: const Icon(Icons.add_box_rounded, color: AppTheme.primaryColor),
+                                ),
+                                title: Text(res['medi_products']?['name']?.toString() ?? 'Unknown Item', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                subtitle: Padding(
+                                  padding: const EdgeInsets.only(top: 4),
+                                  child: Text('Batch: ${res['batch_no'] ?? 'N/A'} | Stock: ${res['quantity'] ?? 0}', style: TextStyle(color: Colors.grey.shade600)),
+                                ),
+                                trailing: Column(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text('₹${res['selling_price'] ?? res['mrp'] ?? 0.0}', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryColor, fontSize: 16)),
+                                  ],
+                                ),
                                 onTap: () => _addToCart(res),
                               );
                             },

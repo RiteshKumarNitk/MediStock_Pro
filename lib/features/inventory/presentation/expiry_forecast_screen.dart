@@ -4,12 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:medistock_pro/core/api_client.dart';
 import 'package:medistock_pro/core/app_theme.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 
 final expiryForecastProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
   final response = await ApiClient.get('/reports?type=expiry');
   if (response.statusCode != 200) return [];
 
-  final List data = jsonDecode(response.body);
+  final Map<String, dynamic> decoded = jsonDecode(response.body);
+  if (decoded['success'] != true) return [];
+  
+  final List data = decoded['data'] ?? [];
   return data.map((item) {
     final map = Map<String, dynamic>.from(item as Map);
     // Robust access to nested product name
@@ -115,26 +119,30 @@ class ExpiryForecastScreen extends ConsumerWidget {
                           ],
                         ),
                       ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            DateFormat('MMM yyyy').format(expiry),
-                            style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
-                          ),
-                          const SizedBox(height: 4),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: statusColor.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(8),
+                      FittedBox(
+                        fit: BoxFit.scaleDown,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              DateFormat('MMM yyyy').format(expiry),
+                              style: const TextStyle(fontWeight: FontWeight.w900, fontSize: 15),
                             ),
-                            child: Text(
-                              '$daysLeft days',
-                              style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                            const SizedBox(height: 4),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: statusColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                '$daysLeft days',
+                                style: TextStyle(color: statusColor, fontWeight: FontWeight.bold, fontSize: 11),
+                              ),
                             ),
-                          ),
-                        ],
+                          ],
+                        ),
                       ),
                     ],
                   ),
@@ -143,7 +151,26 @@ class ExpiryForecastScreen extends ConsumerWidget {
             },
           );
         },
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView.builder(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          itemCount: 6,
+          itemBuilder: (context, index) {
+            return Container(
+              margin: const EdgeInsets.only(bottom: 16),
+              height: 88,
+              child: Shimmer.fromColors(
+                baseColor: Colors.grey.shade200,
+                highlightColor: Colors.white,
+                child: Container(
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
         error: (err, stack) => Center(child: Text('Error: $err')),
       ),
     );

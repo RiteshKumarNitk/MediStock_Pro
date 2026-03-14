@@ -7,7 +7,10 @@ final expiryAlertsProvider = FutureProvider<List<ExpiryAlert>>((ref) async {
   final response = await ApiClient.get('/reports?type=expiry'); // Using expiry report for alerts
   if (response.statusCode != 200) return [];
 
-  final List data = jsonDecode(response.body);
+  final Map<String, dynamic> decoded = jsonDecode(response.body);
+  if (decoded['success'] != true) return [];
+  
+  final List data = decoded['data'] ?? [];
   return data.map((item) {
     // Map backend batch to ExpiryAlert model
     return ExpiryAlert.fromJson({

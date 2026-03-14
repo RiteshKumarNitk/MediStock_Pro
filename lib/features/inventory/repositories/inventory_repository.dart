@@ -7,7 +7,10 @@ class InventoryRepository {
     final response = await ApiClient.get('/products');
     if (response.statusCode != 200) return [];
 
-    final List data = jsonDecode(response.body);
+    final Map<String, dynamic> decoded = jsonDecode(response.body);
+    if (decoded['success'] != true) return [];
+    
+    final List data = decoded['data'] ?? [];
     return data.map((item) {
       return Product(
         id: (item['id'] ?? '').toString(),
@@ -21,12 +24,27 @@ class InventoryRepository {
     }).toList();
   }
 
-  Future<List<Map<String, dynamic>>> getInventoryWithTotalQty() async {
-    final response = await ApiClient.get('/reports?type=inventory');
-    if (response.statusCode != 200) return [];
+  Future<Map<String, dynamic>> getInventoryPaginated({
+    int page = 1,
+    int limit = 50,
+    String search = '',
+  }) async {
+    final query = 'type=inventory&page=$page&limit=$limit&search=${Uri.encodeComponent(search)}';
+    final response = await ApiClient.get('/reports?$query');
+    
+    if (response.statusCode != 200) return {'data': [], 'total': 0};
 
-    final List data = jsonDecode(response.body);
-    return data.map((item) => Map<String, dynamic>.from(item as Map)).toList();
+    final Map<String, dynamic> decoded = jsonDecode(response.body);
+    if (decoded['success'] != true) return {'data': [], 'total': 0};
+    
+    final List data = decoded['data'] ?? [];
+    final pagination = decoded['pagination'] ?? {};
+    
+    return {
+      'data': data.map((item) => Map<String, dynamic>.from(item as Map)).toList(),
+      'total': pagination['total'] ?? data.length,
+      'totalPages': pagination['totalPages'] ?? 1,
+    };
   }
 
   Future<void> savePurchaseInvoice(Map<String, dynamic> data) async {
@@ -39,13 +57,16 @@ class InventoryRepository {
       'taxAmount': data['tax_amount'] ?? 0,
       'imageUrl': data['image_url'],
       'items': (data['items'] as List).map((item) => {
-        'productName': item['product_name'], // Backend can handle product upsert if we add it, but here we assume items have productId
-        'productId': item['productId'], // Or handle name mapping
+        'productName': item['product_name'],
+        'productId': item['productId'],
+        'barcode': item['barcode'] ?? item['barcode_no'],
+        'category': item['category'],
+        'hsnCode': item['hsn_code'] ?? item['hsnCode'],
         'batchNo': item['batch_no'],
         'expiryDate': item['expiry_date'],
         'qty': item['qty'],
-        'rate': item['rate'],
-        'taxableValue': item['taxable_value'],
+        'rate': item['purchase_price'] ?? item['rate'],
+        'taxableValue': item['taxable_value'] ?? ((item['purchase_price'] ?? item['rate'] ?? 0) * (item['qty'] ?? 0)),
         'mrp': item['mrp'],
         'sellingPrice': item['selling_price'],
         'gstPercent': item['gst_percent'],
@@ -67,5 +88,12 @@ class InventoryRepository {
   Future<List<Map<String, dynamic>>> getPurchaseItems(String invoiceId) async {
     // Dedicated endpoint for purchase details could be added
     return [];
+  }
+
+  Future<List<Map<String, dynamic>>> getLedger() async {
+    final response = await ApiClient.get('/reports?type=ledger');
+    if (response.statusCode != 200) throw Exception('Ledger error: ${response.body}');
+    final Map<String, dynamic> decoded = jsonDecode(response.body);
+    return (decoded['data'] as List).cast<Map<String, dynamic>>();
   }
 }

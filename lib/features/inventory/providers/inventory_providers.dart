@@ -11,7 +11,10 @@ final expiryAlertsProvider = FutureProvider<List<ExpiryAlert>>((ref) async {
   final response = await ApiClient.get('/reports?type=inventory'); 
   if (response.statusCode != 200) return [];
   
-  final List data = jsonDecode(response.body);
+  final Map<String, dynamic> decoded = jsonDecode(response.body);
+  if (decoded['success'] != true) return [];
+  
+  final List data = decoded['data'] ?? [];
   return data.map((item) {
     try {
       // Map JSON fields to match ExpiryAlert constructor expectations
@@ -42,10 +45,11 @@ final productsProvider = FutureProvider((ref) {
 });
 
 final lowStockProvider = FutureProvider<List<Map<String, dynamic>>>((ref) async {
-  final inventory = await ref.watch(inventoryRepositoryProvider).getInventoryWithTotalQty();
-  // Filter items where total_qty < 50 (Assumed safety threshold)
+  final result = await ref.watch(inventoryRepositoryProvider).getInventoryPaginated(limit: 100);
+  final List<Map<String, dynamic>> inventory = result['data'] ?? [];
+  // Filter items where total_quantity < 10 (Assumed safety threshold)
   return inventory.where((item) {
-    final qty = (item['total_qty'] as num?)?.toDouble() ?? 0.0;
-    return qty < 50 && qty > 0; // Only alert for items we actually stock
+    final qty = (item['total_quantity'] as num?)?.toDouble() ?? 0.0;
+    return qty < 10 && qty > 0;
   }).toList();
 });

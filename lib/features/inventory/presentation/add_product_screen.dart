@@ -21,10 +21,23 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
   final _nameController = TextEditingController();
   final _batchNoController = TextEditingController();
   final _quantityController = TextEditingController();
+  final _purchasePriceController = TextEditingController();
+  final _sellingPriceController = TextEditingController();
   DateTime? _expiryDate;
   
   bool _isLoading = false;
   bool _isNewProduct = true;
+
+  @override
+  void dispose() {
+    _barcodeController.dispose();
+    _nameController.dispose();
+    _batchNoController.dispose();
+    _quantityController.dispose();
+    _purchasePriceController.dispose();
+    _sellingPriceController.dispose();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -93,8 +106,8 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
         batchNo: _batchNoController.text.trim(),
         expiryDate: _expiryDate!,
         quantity: int.parse(_quantityController.text.trim()),
-        purchasePrice: null,
-        sellingPrice: null,
+        purchasePrice: double.tryParse(_purchasePriceController.text.trim()),
+        sellingPrice: double.tryParse(_sellingPriceController.text.trim()),
       );
       
       if (mounted) {
@@ -223,6 +236,35 @@ class _AddProductScreenState extends ConsumerState<AddProductScreen> {
                                 ),
                               ),
                             ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 20),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextFormField(
+                            controller: _purchasePriceController,
+                            decoration: const InputDecoration(
+                              labelText: 'Purchase Price',
+                              prefixIcon: Icon(Icons.shopping_cart_rounded),
+                              prefixText: '₹',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                        ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: TextFormField(
+                            controller: _sellingPriceController,
+                            decoration: const InputDecoration(
+                              labelText: 'Selling Price',
+                              prefixIcon: Icon(Icons.sell_rounded),
+                              prefixText: '₹',
+                            ),
+                            keyboardType: TextInputType.number,
+                            validator: (v) => v!.isEmpty ? 'Required' : null,
                           ),
                         ),
                       ],

@@ -16,6 +16,8 @@ class OCRReviewScreen extends ConsumerStatefulWidget {
 class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
   late TextEditingController _invoiceNoController;
   late TextEditingController _vendorController;
+  late TextEditingController _gstinController;
+  late TextEditingController _taxAmountController;
   late List<Map<String, dynamic>> _items;
   bool _isSaving = false;
 
@@ -24,6 +26,8 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
     super.initState();
     _invoiceNoController = TextEditingController(text: widget.initialData['invoice_number']);
     _vendorController = TextEditingController(text: widget.initialData['customer_name']);
+    _gstinController = TextEditingController(text: widget.initialData['gstin']);
+    _taxAmountController = TextEditingController(text: (widget.initialData['tax_amount'] ?? 0).toString());
     _items = List<Map<String, dynamic>>.from(widget.initialData['items']);
   }
 
@@ -31,6 +35,8 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
   void dispose() {
     _invoiceNoController.dispose();
     _vendorController.dispose();
+    _gstinController.dispose();
+    _taxAmountController.dispose();
     super.dispose();
   }
 
@@ -41,6 +47,8 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
         ...widget.initialData,
         'invoice_number': _invoiceNoController.text,
         'customer_name': _vendorController.text,
+        'gstin': _gstinController.text,
+        'tax_amount': double.tryParse(_taxAmountController.text) ?? 0.0,
         'items': _items,
       };
 
@@ -107,6 +115,31 @@ class _OCRReviewScreenState extends ConsumerState<OCRReviewScreen> {
                       labelText: 'Vendor / Supplier',
                       prefixIcon: Icon(Icons.business_rounded, size: 20),
                     ),
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _gstinController,
+                          decoration: const InputDecoration(
+                            labelText: 'Vendor GSTIN',
+                            prefixIcon: Icon(Icons.verified_user_rounded, size: 20),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: TextField(
+                          controller: _taxAmountController,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(
+                            labelText: 'Tax Amount',
+                            prefixIcon: Icon(Icons.receipt_long_rounded, size: 20),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ],
               ),

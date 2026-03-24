@@ -3,15 +3,10 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'config.dart';
+
 class ApiClient {
-  static String get baseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000/api/medistock';
-    }
-    // Android emulator loopback IP. 
-    // If using a physical device, change this to your computer's IP (e.g., 192.168.31.67)
-    return 'http://10.0.2.2:3000/api/medistock';
-  }
+  static String get baseUrl => AppConfig.baseUrl;
   
   static Future<Map<String, String>> get _headers async {
     final prefs = await SharedPreferences.getInstance();

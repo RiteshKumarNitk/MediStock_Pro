@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:medistock_pro/core/api_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -44,7 +45,12 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     final session = prefs.getString(_sessionKey);
     if (session == null) return null;
-    return jsonDecode(session);
+    try {
+      return jsonDecode(session);
+    } catch (e) {
+      debugPrint('Error decoding user session: $e');
+      return null;
+    }
   }
 
   Future<void> logout() async {

@@ -24,7 +24,12 @@ class _ScanInvoiceScreenState extends ConsumerState<ScanInvoiceScreen> {
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
-    final pickedFile = await picker.pickImage(source: source);
+    final pickedFile = await picker.pickImage(
+      source: source,
+      imageQuality: 70,
+      maxWidth: 1920,
+      maxHeight: 1080,
+    );
 
     if (pickedFile != null) {
       final bytes = await pickedFile.readAsBytes();
